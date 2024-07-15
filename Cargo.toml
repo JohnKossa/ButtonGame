@@ -1,0 +1,21 @@
+[package]
+name = "ButtonGame"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+bindgen = "0.69.4"
+
+[dependencies.gl]
+git = "https://github.com/bjz/gl-rs"
+
+[dependencies.sdl2]
+git = "https://github.com/AngryLawyer/rust-sdl2"
+features = ["image", "ttf"]
+
+[dependencies]
+specs = "0.20.0"
+specs-derive = "0.4.1"
+rodio = "0.19.0"
