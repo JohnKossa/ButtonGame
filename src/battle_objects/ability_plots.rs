@@ -10,7 +10,7 @@ pub struct AbilityPlot {
 }
 
 impl BattleRenderable for AbilityPlot{
-	fn render(&self, canvas: &mut WindowCanvas, background_texture: &Texture, ctx: &BattleContext){
+	fn render(&self, canvas: &mut WindowCanvas, _background_texture: &Texture, ctx: &BattleContext){
 		let camera_pos = ctx.camera_state.pos;
 		let camera_scale = ctx.camera_state.scale;
 		let plot_rect = Rect::from_center(

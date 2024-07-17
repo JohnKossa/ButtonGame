@@ -8,7 +8,7 @@ pub struct GameCoord{
 }
 impl GameCoord {
 	pub fn to_grid_coord(&self) -> GridCoord{
-		let grid_size = 20;
+		let grid_size = GridCoord::grid_size();
 		let mut x_grid = (self.x.abs() + grid_size/2) / grid_size;
 		let mut y_grid = (self.y.abs() + grid_size/2) / grid_size;
 		if self.x < 0 {
@@ -17,7 +17,7 @@ impl GameCoord {
 		if self.y < 0 {
 			y_grid = y_grid * -1
 		}
-		GridCoord{x: x_grid, y: y_grid, grid_size }
+		GridCoord{x: x_grid, y: y_grid }
 	}
 
 	pub fn to_display_coord(&self, center_point: GameCoord, scale_factor: f32, window_dimensions: (u32, u32)) -> sdl2::rect::Point{
@@ -43,31 +43,34 @@ impl GameCoord {
 
 #[derive(Clone, Copy, Debug)]
 pub struct GridCoord{
-	pub grid_size: i32,
+	//pub grid_size: i32,
 	pub x: i32,
 	pub y: i32,
 }
 
 impl GridCoord {
+	pub fn grid_size()->i32{
+		20
+	}
 
 	pub fn top_left(&self) -> GameCoord {
-		let mut center = self.center();
-		GameCoord {x: center.x-self.grid_size/2, y: center.y+self.grid_size/2}
+		let center = self.center();
+		GameCoord {x: center.x-Self::grid_size()/2, y: center.y+Self::grid_size()/2}
 	}
 	pub fn top_right(&self) -> GameCoord {
-		let mut center = self.center();
-		GameCoord {x: center.x+self.grid_size/2, y: center.y+self.grid_size/2}
+		let center = self.center();
+		GameCoord {x: center.x+Self::grid_size()/2, y: center.y+Self::grid_size()/2}
 	}
 	pub fn bottom_left(&self) -> GameCoord {
-		let mut center = self.center();
-		GameCoord {x: center.x-self.grid_size/2, y: center.y-self.grid_size/2}
+		let center = self.center();
+		GameCoord {x: center.x-Self::grid_size()/2, y: center.y-Self::grid_size()/2}
 	}
 	pub fn bottom_right(&self) -> GameCoord {
-		let mut center = self.center();
-		GameCoord {x: center.x+self.grid_size/2, y: center.y-self.grid_size/2}
+		let center = self.center();
+		GameCoord {x: center.x+Self::grid_size()/2, y: center.y-Self::grid_size()/2}
 	}
 	pub fn center(&self) -> GameCoord {
-		GameCoord {x: self.grid_size*self.x, y: self.grid_size*self.y}
+		GameCoord {x: Self::grid_size()*self.x, y: Self::grid_size()*self.y}
 	}
 }
 

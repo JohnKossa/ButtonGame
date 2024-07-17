@@ -27,7 +27,7 @@ impl BattleRenderable for Hud {
 		canvas.set_draw_color(sdl2::pixels::Color::RGB(255, 0, 0));
 		canvas.fill_rect(Rect::new(10, 10, fill_width, 30)).unwrap();
 		let ttf_context = sdl2::ttf::init().unwrap();
-		let mut font = ttf_context.load_font("assets/fonts/The_Frontman.ttf", 32).unwrap();
+		let font = ttf_context.load_font("assets/fonts/The_Frontman.ttf", 32).unwrap();
 
 		if self.ability_primary.len()>0{
 			let surface = font.render(&self.ability_primary)

@@ -17,7 +17,7 @@ pub struct Button{
 
 impl Button {
 	pub fn new() -> Button {
-		Button {pos: GridCoord{x:0, y:0, grid_size: 20}, state: ButtonState::NeverPressed}
+		Button {pos: GridCoord{x:0, y:0}, state: ButtonState::NeverPressed}
 	}
 	pub fn update(&mut self){
 		self.state = match self.state{

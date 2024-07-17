@@ -27,7 +27,6 @@ impl GameObject{
 		match &self.phase{
 			Battle(battle) => render_battle(canvas, background_texture, &battle),
 			StartScreen(ctx) => render_start_screen(canvas, background_texture, &ctx),
-			_ => todo!("Implement render for other phases")
 		}
 	}
 }

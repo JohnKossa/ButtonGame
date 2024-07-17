@@ -25,7 +25,7 @@ impl StartScreenContext{
 		}
 	}
 
-	pub fn handle_tick(game_obj: &mut GameObject, input_state: &InputState, sound_manager: &mut SoundManager){
+	pub fn handle_tick(game_obj: &mut GameObject, input_state: &InputState, _sound_manager: &mut SoundManager){
 		match game_obj.phase {
 			GameContext::StartScreen(start_screen_context) => {
 				match start_screen_context.state {
@@ -62,7 +62,7 @@ pub fn render_start_screen(canvas: &mut WindowCanvas, background_texture: &Textu
 	canvas.copy(background_texture, None, None).expect("Couldn't draw background texture.");
 
 	let ttf_context = sdl2::ttf::init().unwrap();
-	let mut font = ttf_context.load_font("assets/fonts/The_Frontman.ttf", 128).unwrap();
+	let font = ttf_context.load_font("assets/fonts/The_Frontman.ttf", 128).unwrap();
 
 	// Render the text into a surface.
 	let surface = font.render("Button Game")
@@ -72,7 +72,6 @@ pub fn render_start_screen(canvas: &mut WindowCanvas, background_texture: &Textu
 	let texture_creator = canvas.texture_creator();
 	let texture = texture_creator.create_texture_from_surface(&surface).unwrap();
 	// Draw the texture on the canvas.
-	let texture_query = texture.query();
 	let target_rect = Rect::new(50, 100, (width as f32 *0.8) as u32, (height as f32 *0.25) as u32);
 	canvas.copy(&texture, None, Some(target_rect)).expect("Couldn't write start screen text.");
 
@@ -84,7 +83,6 @@ pub fn render_start_screen(canvas: &mut WindowCanvas, background_texture: &Textu
 	let texture_creator = canvas.texture_creator();
 	let texture = texture_creator.create_texture_from_surface(&surface).unwrap();
 	// Draw the texture on the canvas.
-	let texture_query = texture.query();
 	let target_rect = Rect::new(50, 250, 400, 100);
 	canvas.copy(&texture, None, Some(target_rect)).expect("Couldn't write start screen text.");
 
@@ -96,7 +94,6 @@ pub fn render_start_screen(canvas: &mut WindowCanvas, background_texture: &Textu
 	let texture_creator = canvas.texture_creator();
 	let texture = texture_creator.create_texture_from_surface(&surface).unwrap();
 	// Draw the texture on the canvas.
-	let texture_query = texture.query();
 	let target_rect = Rect::new(((width / 2)-100) as i32, ((height/2)+50) as i32, 200, 100);
 	canvas.copy(&texture, None, Some(target_rect)).expect("Couldn't write start screen text.");
 

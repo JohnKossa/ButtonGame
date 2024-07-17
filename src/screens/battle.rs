@@ -58,18 +58,18 @@ impl BattleContext{
 			friendly_projectiles: Vec::new(),
 			enemies: Vec::new(),
 			ability_plots: vec![
-				AbilityPlot{pos:GridCoord{x:-1, y:-2, grid_size:20}, ability:Ability::MeleeAttack},
-				AbilityPlot{pos:GridCoord{x:1,  y:-2, grid_size:20}, ability:Ability::Armor},
-				AbilityPlot{pos:GridCoord{x:2,  y:-1, grid_size:20}, ability:Ability::RangeAttack},
-				AbilityPlot{pos:GridCoord{x:2,  y:1,  grid_size:20}, ability:Ability::Vision},
-				AbilityPlot{pos:GridCoord{x:1,  y:2,  grid_size:20}, ability:Ability::Build},
-				AbilityPlot{pos:GridCoord{x:-1, y:2,  grid_size:20}, ability:Ability::Repair},
-				AbilityPlot{pos:GridCoord{x:-2, y:-1, grid_size:20}, ability:Ability::ButtonPress},
-				AbilityPlot{pos:GridCoord{x:-2, y:1,  grid_size:20}, ability:Ability::Heal}
+				AbilityPlot{pos:GridCoord{x:-1, y:-2}, ability:Ability::MeleeAttack},
+				AbilityPlot{pos:GridCoord{x:1,  y:-2}, ability:Ability::Armor},
+				AbilityPlot{pos:GridCoord{x:2,  y:-1}, ability:Ability::RangeAttack},
+				AbilityPlot{pos:GridCoord{x:2,  y:1}, ability:Ability::Vision},
+				AbilityPlot{pos:GridCoord{x:1,  y:2}, ability:Ability::Build},
+				AbilityPlot{pos:GridCoord{x:-1, y:2}, ability:Ability::Repair},
+				AbilityPlot{pos:GridCoord{x:-2, y:-1}, ability:Ability::ButtonPress},
+				AbilityPlot{pos:GridCoord{x:-2, y:1}, ability:Ability::Heal}
 			],
 		}
 	}
-	pub fn from_game_object(game_object: &GameObject) -> BattleContext{
+	pub fn from_game_object(_game_object: &GameObject) -> BattleContext{
 		BattleContext::new()
 		// TODO hydrate from save state
 	}
@@ -345,7 +345,7 @@ pub enum PlayerState{
 	Healing
 }
 
-pub fn draw_grid(canvas: &mut WindowCanvas, background_texture: &Texture, ctx: &BattleContext){
+pub fn draw_grid(canvas: &mut WindowCanvas, _background_texture: &Texture, ctx: &BattleContext){
 	//starting from the camera position, get the grid square, get the top left corner, keep drawin vertical lines to the left and right until we've drawn 3/4 the width of the screen each direction
 	//keep drawing horizontal lines to the top and botton until we've drawn 3/4 of the height of the screen
 	let camera = &ctx.camera_state;
@@ -353,7 +353,7 @@ pub fn draw_grid(canvas: &mut WindowCanvas, background_texture: &Texture, ctx: &
 	canvas.set_draw_color(Color::RGB(64,64,64));
 	//let start_point = camera.pos.to_grid_coord().top_left().to_grid_coord();
 	let start_point = camera.pos.to_grid_coord().top_left().to_display_coord(camera.pos, camera.scale, canvas_dimensions);
-	let grid_width = camera.pos.to_grid_coord().grid_size;
+	let grid_width = GridCoord::grid_size();
 	let mut x_offset = 0;
 	while x_offset < (2 * canvas_dimensions.0 ){
 		//draw a vertical line that's 120% of the height
