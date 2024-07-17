@@ -5,3 +5,4 @@ pub(crate) mod enemy;
 pub(crate) mod projectiles;
 pub(crate) mod coordinates;
 pub(crate) mod ability_plots;
+pub(crate) mod hud;

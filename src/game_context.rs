@@ -3,7 +3,7 @@ use crate::game_context::GameContext::{Battle, StartScreen};
 use crate::screens::start::render_start_screen;
 use crate::screens::battle::{BattleContext, render_battle};
 use crate::screens::start::StartScreenContext;
-use crate::input::{InputState, get_player_intent_vector};
+use crate::input::{InputState};
 use crate::sound_manager::SoundManager;
 
 pub struct GameObject{

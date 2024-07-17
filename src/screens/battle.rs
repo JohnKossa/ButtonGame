@@ -12,7 +12,8 @@ use crate::battle_objects::enemy::Enemy;
 use crate::battle_objects::projectiles::FriendlyProjectile;
 use crate::battle_objects::coordinates::{GridCoord, GameCoord, Direction};
 use crate::battle_objects::ability_plots::AbilityPlot;
-use crate::screens::battle::Ability::Blank;
+use crate::battle_objects::hud::Hud;
+use crate::screens::battle::Ability::{Blank, MeleeAttack, Armor, RangeAttack, Vision, Build, Repair, ButtonPress, Heal};
 
 #[derive(Clone)]
 pub enum BattleState{
@@ -86,13 +87,12 @@ impl BattleContext{
 		to_return.push(self.player.game_coord.to_grid_coord());
 
 		todo!("not implemented");
-		Vec::new()
 	}
 
 	pub fn get_learning_time(&self) -> u32{
 		30
 	}
-	pub fn handle_tick(game_obj: &mut GameObject, /*game_obj: &mut GameObject,*/ input_state: &InputState, my_sound_manager: &mut SoundManager){
+	pub fn handle_tick(game_obj: &mut GameObject, input_state: &InputState, my_sound_manager: &mut SoundManager){
 		match game_obj.phase {
 			GameContext::Battle(ref mut battle_context) =>{
 				let learning_timer = battle_context.get_learning_time();
@@ -129,12 +129,17 @@ impl BattleContext{
 								//still running
 								battle_player.facing_vector = x;
 								battle_player.snapped_facing_vector = Direction::from_facing_vector(x);
-								//println!("{:?} {:?}", player.snapped_facing_vector, player.facing_vector);
-								const RUNNING_SPEED: f32 = 2.0;
+								const RUNNING_SPEED: f32 = 3.0;
 								battle_player.game_coord.x += (battle_player.facing_vector.cos() * RUNNING_SPEED) as i32;
 								battle_player.game_coord.y -= (battle_player.facing_vector.sin() * RUNNING_SPEED) as i32;
 							},
-							(PlayerState::Running, None, f_, _) =>{
+							(PlayerState::Running, _, true, false) =>{
+								battle_player.state = PlayerState::Learning(ActionButton::Primary, 0, learning_timer)
+							},
+							(PlayerState::Running, _, false, true) =>{
+								battle_player.state = PlayerState::Learning(ActionButton::Secondary, 0, learning_timer)
+							},
+							(PlayerState::Running, None, _, _) =>{
 								battle_player.state = PlayerState::Standing;
 							},
 							(PlayerState::Running, _,_,_) =>todo!("Button combo for running not implemented"),
@@ -144,24 +149,47 @@ impl BattleContext{
 							(PlayerState::Learning(ActionButton::Primary, curr, max), _, true, false) if curr < max => {
 								//if player is standing in a learning zone
 								let player_grid = battle_player.game_coord.to_grid_coord();
-								battle_player.state = PlayerState::Learning(ActionButton::Primary, curr+1, *max);
-								//else, player goes back to standing
+								let player_in_plot = battle_context.ability_plots.iter().find(|plot| plot.pos == player_grid);
+								println!("coordinates: {:?}, {:?}", player_grid, battle_player.game_coord);
+								if let Some(_) = player_in_plot {
+									battle_player.state = PlayerState::Learning(ActionButton::Primary, curr+1, *max);
+								}else{
+									battle_player.state = PlayerState::Standing;
+								}
 							},
 							(PlayerState::Learning(ActionButton::Primary, curr, max), _, true, false) if curr >= max => {
+								let player_grid_square = battle_player.game_coord.to_grid_coord();
+								let active_plot = battle_context.ability_plots.iter()
+										.find(|plot| plot.pos == player_grid_square);
+								if let Some(plot) = active_plot {
+									battle_player.ability_primary = plot.ability;
+								}
 								battle_player.state = PlayerState::Standing;
-
-								//TODO
 							},
 							(PlayerState::Learning(ActionButton::Secondary, curr, max), _, false, true) if curr < max => {
-								battle_player.state = PlayerState::Learning(ActionButton::Secondary, curr+1, *max)
+								let player_grid = battle_player.game_coord.to_grid_coord();
+								let player_in_plot = battle_context.ability_plots.iter().find(|plot| plot.pos == player_grid);
+								if let Some(_) = player_in_plot {
+									battle_player.state = PlayerState::Learning(ActionButton::Secondary, curr+1, *max);
+								}else{
+									battle_player.state = PlayerState::Standing;
+								}
 							}
-							(PlayerState::Learning(ActionButton::Secondary, curr, max), _, true, false) if curr >= max => {
+							(PlayerState::Learning(ActionButton::Secondary, curr, max), _, false, true) if curr >= max => {
+								let player_grid_square = battle_player.game_coord.to_grid_coord();
+								let active_plot = battle_context.ability_plots.iter()
+										.find(|plot| plot.pos == player_grid_square);
+								if let Some(plot) = active_plot {
+									battle_player.ability_secondary = plot.ability;
+								}
 								battle_player.state = PlayerState::Standing;
-								//TODO
 							},
-							_=>todo!("Not implemented"),
+							(PlayerState::Learning(_,_,_),_,_,_) => todo!("Button combo for learning not implemented"),
+							(s,d,a,b)=>{
+								println!("Player state: {:?}, direction: {:?}, a: {}, b: {}", s, d, a, b);
+								todo!("Not implemented")
+							},
 						}
-						update_battle_player(battle_player, &input_state, my_sound_manager, learning_timer);
 						//TODO broadcast moves
 					},
 					BattleState::Finished => (),
@@ -203,34 +231,32 @@ pub struct BattlePlayerContext{
 }
 
 impl BattlePlayerContext{
-	fn edge_coords(&self, width: u32, scale_factor: f32, center_point: GameCoord, window_dimensions: (u32, u32)) -> (Point, Point){
+	fn display_corners(&self, width: u32, scale_factor: f32, center_point: GameCoord, window_dimensions:(u32, u32)) -> (Point, Point, Point, Point){
 		let top_left = GameCoord{x: self.game_coord.x - width as i32/2, y: self.game_coord.y - width as i32/2};
 		let top_right = GameCoord{x: self.game_coord.x + width as i32/2, y: self.game_coord.y - width as i32/2};
 		let bottom_left = GameCoord{x: self.game_coord.x - width as i32/2, y: self.game_coord.y + width as i32/2};
 		let bottom_right = GameCoord{x: self.game_coord.x + width as i32/2, y: self.game_coord.y + width as i32/2};
+		(
+			top_left.to_display_coord(center_point, scale_factor, window_dimensions),
+			top_right.to_display_coord(center_point, scale_factor, window_dimensions),
+			bottom_left.to_display_coord(center_point, scale_factor, window_dimensions),
+			bottom_right.to_display_coord(center_point, scale_factor, window_dimensions)
+		)
+	}
+
+	fn edge_coords(&self, width: u32, scale_factor: f32, center_point: GameCoord, window_dimensions: (u32, u32)) -> (Point, Point){
+		let corners = self.display_corners(width, scale_factor, center_point, window_dimensions);
 		match self.snapped_facing_vector {
-			Direction::North => (
-				top_left.to_display_coord(center_point, scale_factor, window_dimensions),
-				top_right.to_display_coord(center_point, scale_factor, window_dimensions)
-			),
-			Direction::South => (
-				bottom_left.to_display_coord(center_point, scale_factor, window_dimensions),
-				bottom_right.to_display_coord(center_point, scale_factor, window_dimensions)
-			),
-			Direction::West => (
-				top_left.to_display_coord(center_point, scale_factor, window_dimensions),
-				bottom_left.to_display_coord(center_point, scale_factor, window_dimensions)
-			),
-			Direction::East => (
-				top_right.to_display_coord(center_point, scale_factor, window_dimensions),
-				bottom_right.to_display_coord(center_point, scale_factor, window_dimensions)
-			),
+			Direction::North => (corners.0, corners.1),
+			Direction::South => (corners.2, corners.3),
+			Direction::West => (corners.0, corners.2),
+			Direction::East => (corners.1, corners.3),
 		}
 	}
 }
 
 impl BattleRenderable for BattlePlayerContext{
-	fn render(&self, canvas: &mut WindowCanvas, background_texture: &Texture, ctx: &BattleContext){
+	fn render(&self, canvas: &mut WindowCanvas, _background_texture: &Texture, ctx: &BattleContext){
 		let player = &ctx.player;
 		let camera = &ctx.camera_state;
 		let canvas_size = canvas.output_size().unwrap();
@@ -245,10 +271,25 @@ impl BattleRenderable for BattlePlayerContext{
 		let player_color = match player.state{
 			PlayerState::Standing => Color::RGB(0,255,0),
 			PlayerState::Running => Color::RGB(255, 255, 0),
+			PlayerState::Learning(_,_,_) => Color::RGB(255, 127, 0),
 			_ => todo!()
 		};
+		//player learning rectangle is a rectangle that fills from bottom to top as the player learns an ability
+		let progress_pct = match player.state{
+			PlayerState::Learning(_, curr, max) => curr as f32 / max as f32,
+			_ => 0.0
+		};
+		let progress_pixels = (player_rect.height() as f32 * progress_pct) as u32;
+		let progress_rectangle = Rect::new(
+			player_rect.x(),
+			player_rect.y() + player_rect.height() as i32 - progress_pixels as i32,
+			player_rect.width(),
+			progress_pixels
+		);
 		canvas.set_draw_color(player_color);
 		canvas.fill_rect(player_rect).unwrap();
+		canvas.set_draw_color(Color::RGB(255,255,255));
+		canvas.fill_rect(progress_rectangle).unwrap();
 		canvas.set_draw_color(Color::RGB(255,0,255));
 		canvas.draw_line(player_facing_indicator_points.0, player_facing_indicator_points.1).unwrap();
 	}
@@ -267,13 +308,29 @@ pub enum Ability{
 	Heal
 }
 
-#[derive(Clone, Copy)]
+impl Ability{
+	pub fn get_hud_text(&self) -> String{
+		match self{
+			Blank => String::from(""),
+			MeleeAttack => String::from("Melee Attack"),
+			Armor => String::from("Armor"),
+			RangeAttack => String::from("Range Attack"),
+			Vision => String::from("Vision"),
+			Build => String::from("Build"),
+			Repair => String::from("Repair"),
+			ButtonPress => String::from("Press Button"),
+			Heal => String::from("Heal"),
+		}
+	}
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum ActionButton {
 	Primary,
 	Secondary
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum PlayerState{
 	Standing,
 	Running,
@@ -286,64 +343,6 @@ pub enum PlayerState{
 	BuildPlacing,
 	Building,
 	Healing
-}
-
-fn update_battle_player(player: &mut BattlePlayerContext, input: &InputState, sound_manager: &mut SoundManager, learning_time: u32){
-	match (&player.state, get_player_intent_vector(input), &input.btn_down, &input.btn_right){
-		(PlayerState::Standing, None, false, false) => (),
-		(PlayerState::Standing, Some(x), false, false) => {
-			player.facing_vector = x;
-			player.snapped_facing_vector = Direction::from_facing_vector(x);
-			const RUNNING_SPEED: f32 = 2.0;
-			player.game_coord.x += (player.facing_vector.cos() * RUNNING_SPEED) as i32;
-			player.game_coord.y -= (player.facing_vector.sin() * RUNNING_SPEED) as i32;
-			player.state = PlayerState::Running;
-		},
-		(PlayerState::Standing,_, true, false) =>{
-			player.state = PlayerState::Learning(ActionButton::Primary, 0, learning_time)
-		},
-		(PlayerState::Standing,_, false, true) =>{
-			player.state = PlayerState::Learning(ActionButton::Secondary, 0, learning_time)
-		}
-		(PlayerState::Standing, _, _, _) => todo!("Button combo for standing not implemented"),
-		(PlayerState::Running, Some(x), false, false) => {
-			//still running
-			player.facing_vector = x;
-			player.snapped_facing_vector = Direction::from_facing_vector(x);
-			//println!("{:?} {:?}", player.snapped_facing_vector, player.facing_vector);
-			const RUNNING_SPEED: f32 = 2.0;
-			player.game_coord.x += (player.facing_vector.cos() * RUNNING_SPEED) as i32;
-			player.game_coord.y -= (player.facing_vector.sin() * RUNNING_SPEED) as i32;
-		},
-		(PlayerState::Running, None, f_, _) =>{
-			player.state = PlayerState::Standing;
-		},
-		(PlayerState::Running, _,_,_) =>todo!("Button combo for running not implemented"),
-		(PlayerState::Learning(_,_,_),_,false,false) =>{
-			player.state = PlayerState::Standing;
-		},
-		(PlayerState::Learning(ActionButton::Primary, curr, max), _, true, false) if curr < max => {
-			//if player is standing in a learning zone
-			let player_grid = player.game_coord.to_grid_coord();
-			player.state = PlayerState::Learning(ActionButton::Primary, curr+1, *max);
-			//else, player goes back to standing
-		},
-		(PlayerState::Learning(ActionButton::Primary, curr, max), _, true, false) if curr >= max => {
-			player.state = PlayerState::Standing;
-
-			//TODO
-		},
-		(PlayerState::Learning(ActionButton::Secondary, curr, max), _, false, true) if curr < max => {
-			player.state = PlayerState::Learning(ActionButton::Secondary, curr+1, *max)
-		}
-		(PlayerState::Learning(ActionButton::Secondary, curr, max), _, true, false) if curr >= max => {
-			player.state = PlayerState::Standing;
-			//TODO
-		},
-		_=>todo!("Not implemented"),
-
-	}
-	//println!("grid {:?}, game {:?}, gridcenter {:?}, gridtopleft {:?}", player.game_coord.to_grid_coord(), player.game_coord, player.game_coord.to_grid_coord().center(), player.game_coord.to_grid_coord().top_left())
 }
 
 pub fn draw_grid(canvas: &mut WindowCanvas, background_texture: &Texture, ctx: &BattleContext){
@@ -382,9 +381,10 @@ pub fn render_battle(canvas: &mut WindowCanvas, background_texture: &Texture, ct
 	//canvas.copy(background_texture, None, None).expect("Couldn't draw background texture.");
 	draw_grid(canvas, background_texture, ctx);
 	ctx.button.render(canvas, background_texture, ctx);
-	ctx.player.render(canvas, background_texture, ctx);
 	for ability_plot in &ctx.ability_plots{
 		ability_plot.render(canvas, background_texture, ctx);
 	}
+	ctx.player.render(canvas, background_texture, ctx);
+	Hud::from_player(&ctx.player).render(canvas, background_texture, ctx);
 	canvas.present();
 }

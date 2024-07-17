@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::io::BufReader;
 use std::fs::File;
 use std::path::Path;
-use rodio::decoder::DecoderError;
 
 pub struct SoundManager {
 	playing_sounds: HashMap<String, Sink>,

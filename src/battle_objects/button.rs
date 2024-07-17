@@ -31,11 +31,9 @@ impl Button {
 impl BattleRenderable for Button{
 	fn render(&self, canvas: &mut WindowCanvas, background_texture: &Texture, ctx: &BattleContext) {
 		let camera = &ctx.camera_state;
+		let display_rect_center = self.pos.center().to_display_coord(camera.pos, camera.scale, canvas.output_size().unwrap());
 		let button_rect = Rect::from_center(
-			self.pos.center().to_display_coord(
-				camera.pos,
-				camera.scale,
-				canvas.output_size().unwrap()),
+			display_rect_center,
 			(camera.scale * 16.0) as u32,
 			(camera.scale * 16.0) as u32);
 		let button_color = Color::RGB(255, 128, 0);

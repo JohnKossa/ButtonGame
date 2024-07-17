@@ -1,4 +1,5 @@
 use std::f32::consts::PI;
+use sdl2::rect::Point;
 
 #[derive(Clone, Copy, Debug)]
 pub struct GameCoord{
@@ -8,7 +9,15 @@ pub struct GameCoord{
 impl GameCoord {
 	pub fn to_grid_coord(&self) -> GridCoord{
 		let grid_size = 20;
-		GridCoord{x: self.x/grid_size, y: self.y/grid_size, grid_size }
+		let mut x_grid = (self.x.abs() + grid_size/2) / grid_size;
+		let mut y_grid = (self.y.abs() + grid_size/2) / grid_size;
+		if self.x < 0 {
+			x_grid = x_grid * -1
+		}
+		if self.y < 0 {
+			y_grid = y_grid * -1
+		}
+		GridCoord{x: x_grid, y: y_grid, grid_size }
 	}
 
 	pub fn to_display_coord(&self, center_point: GameCoord, scale_factor: f32, window_dimensions: (u32, u32)) -> sdl2::rect::Point{
@@ -28,7 +37,7 @@ impl GameCoord {
 		new_y = (new_y as f32 * scale_factor) as i32;
 		new_y = new_y + window_dimensions.1 as i32/2;
 
-		sdl2::rect::Point::new(new_x, new_y)
+		Point::new(new_x, new_y)
 	}
 }
 
@@ -40,6 +49,7 @@ pub struct GridCoord{
 }
 
 impl GridCoord {
+
 	pub fn top_left(&self) -> GameCoord {
 		let mut center = self.center();
 		GameCoord {x: center.x-self.grid_size/2, y: center.y+self.grid_size/2}
@@ -58,6 +68,12 @@ impl GridCoord {
 	}
 	pub fn center(&self) -> GameCoord {
 		GameCoord {x: self.grid_size*self.x, y: self.grid_size*self.y}
+	}
+}
+
+impl PartialEq for GridCoord {
+	fn eq(&self, other: &Self) -> bool {
+		self.x == other.x && self.y == other.y
 	}
 }
 
