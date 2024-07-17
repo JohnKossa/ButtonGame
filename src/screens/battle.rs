@@ -43,6 +43,7 @@ impl BattleContext{
             player: BattlePlayerContext{
                 facing_vector: 0.0,
                 state: PlayerState::Standing,
+                vision_range: 5,
                 ability_primary: Blank,
                 ability_secondary: Blank,
                 game_coord: GameCoord{ x:150, y:-150 },
@@ -73,6 +74,17 @@ impl BattleContext{
     }
 
     pub fn get_visible_squares(&self) -> Vec<GridCoord>{
+        //visible squares are a cone of squares projecting from the player and all other players as well as all squares directly adjacent to the player
+        //if a square crosses a wall object, visibility stops projecting from that point
+        let mut to_return = Vec::new();
+        //player square is visible
+        to_return.push(self.player.game_coord.to_grid_coord());
+        //if there's no wall in the direction the player is facing
+        //for the direction the player is facing, add each square in that direction until either a wall is found or the vision range is reached
+        //
+
+        to_return.push(self.player.game_coord.to_grid_coord());
+
         todo!("not implemented");
         Vec::new()
     }
@@ -183,6 +195,7 @@ impl CameraState{
 pub struct BattlePlayerContext{
     pub game_coord: GameCoord,
     pub facing_vector: f32,
+    pub vision_range: u8,
     pub ability_primary: Ability,
     pub ability_secondary: Ability,
     pub snapped_facing_vector: Direction,

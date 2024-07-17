@@ -6,17 +6,10 @@ mod sound_manager;
 mod game_context;
 mod battle_objects;
 
-use std::fs::File;
-use std::io::BufReader;
 use std::time::{Duration, Instant};
-use rodio::{Decoder};
-use sdl2::controller::{Axis, Button};
-use sdl2::event::Event;
 use sdl2::image::{LoadTexture};
-use sdl2::keyboard::Keycode;
 
-use input::{InputState, ControllerType, ControllerSettings, read_input_event};
-use screens::battle::{BattleContext, render_battle};
+use input::{InputState, ControllerSettings, read_input_event};
 use sound_manager::SoundManager;
 use game_context::{GameContext, GameObject, Player};
 use crate::screens::start::StartScreenContext;
