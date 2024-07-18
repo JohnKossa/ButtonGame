@@ -41,6 +41,12 @@ impl GameCoord {
 	}
 }
 
+impl PartialEq for GameCoord {
+	fn eq(&self, other: &Self) -> bool {
+		self.x == other.x && self.y == other.y
+	}
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct GridCoord{
 	//pub grid_size: i32,
@@ -55,19 +61,19 @@ impl GridCoord {
 
 	pub fn top_left(&self) -> GameCoord {
 		let center = self.center();
-		GameCoord {x: center.x-Self::grid_size()/2, y: center.y+Self::grid_size()/2}
+		GameCoord {x: center.x-Self::grid_size()/2, y: center.y-Self::grid_size()/2}
 	}
 	pub fn top_right(&self) -> GameCoord {
 		let center = self.center();
-		GameCoord {x: center.x+Self::grid_size()/2, y: center.y+Self::grid_size()/2}
+		GameCoord {x: center.x+Self::grid_size()/2, y: center.y-Self::grid_size()/2}
 	}
 	pub fn bottom_left(&self) -> GameCoord {
 		let center = self.center();
-		GameCoord {x: center.x-Self::grid_size()/2, y: center.y-Self::grid_size()/2}
+		GameCoord {x: center.x-Self::grid_size()/2, y: center.y+Self::grid_size()/2}
 	}
 	pub fn bottom_right(&self) -> GameCoord {
 		let center = self.center();
-		GameCoord {x: center.x+Self::grid_size()/2, y: center.y-Self::grid_size()/2}
+		GameCoord {x: center.x+Self::grid_size()/2, y: center.y+Self::grid_size()/2}
 	}
 	pub fn center(&self) -> GameCoord {
 		GameCoord {x: Self::grid_size()*self.x, y: Self::grid_size()*self.y}

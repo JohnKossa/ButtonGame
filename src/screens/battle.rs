@@ -95,6 +95,7 @@ impl BattleContext{
 	pub fn handle_tick(game_obj: &mut GameObject, input_state: &InputState, my_sound_manager: &mut SoundManager){
 		match game_obj.phase {
 			GameContext::Battle(ref mut battle_context) =>{
+				battle_context.round_time += 1;
 				let learning_timer = battle_context.get_learning_time();
 				let battle_player = &mut battle_context.player;
 				match battle_context.state {
@@ -108,6 +109,7 @@ impl BattleContext{
 						//TODO check for received moves
 						//TODO update world
 						battle_context.camera_state.smooth_scroll(&battle_player.game_coord);
+						battle_context.button.update();
 						match (&battle_player.state, get_player_intent_vector(input_state), &input_state.btn_down, &input_state.btn_right){
 							(PlayerState::Standing, None, false, false) => (),
 							(PlayerState::Standing, Some(x), false, false) => {
@@ -119,12 +121,51 @@ impl BattleContext{
 								battle_player.state = PlayerState::Running;
 							},
 							(PlayerState::Standing,_, true, false) =>{
-								battle_player.state = PlayerState::Learning(ActionButton::Primary, 0, learning_timer)
+								//if players are standing in a learning zone, switch to learning state
+								let player_grid = battle_player.game_coord.to_grid_coord();
+								let player_in_plot = battle_context.ability_plots.iter().find(|plot| plot.pos == player_grid);
+								if let Some(_) = player_in_plot {
+									battle_player.state = PlayerState::Learning(ActionButton::Primary, 0, learning_timer)
+								}else {
+									//otherwise, activate the ability assigned to primary
+									battle_player.state = match battle_player.ability_primary {
+										Blank => PlayerState::Standing,
+										MeleeAttack => PlayerState::MeleeAttacking(0, 25),
+										Armor => PlayerState::Standing,
+										RangeAttack => PlayerState::RangeTargeting,
+										Vision => PlayerState::Standing,
+										Build => PlayerState::BuildPlacing(0, 25),
+										Repair => PlayerState::Repairing,
+										ButtonPress => PlayerState::ButtonPressing,
+										Heal => PlayerState::Healing
+									}
+								}
 							},
 							(PlayerState::Standing,_, false, true) =>{
-								battle_player.state = PlayerState::Learning(ActionButton::Secondary, 0, learning_timer)
-							}
-							(PlayerState::Standing, _, _, _) => todo!("Button combo for standing not implemented"),
+								//if players are standing in a learning zone, switch to learning state
+								let player_grid = battle_player.game_coord.to_grid_coord();
+								let player_in_plot = battle_context.ability_plots.iter().find(|plot| plot.pos == player_grid);
+								if let Some(_) = player_in_plot {
+									battle_player.state = PlayerState::Learning(ActionButton::Secondary, 0, learning_timer)
+								}else{
+									//otherwise, activate the ability assigned to primary
+									battle_player.state = match battle_player.ability_primary {
+										Blank => PlayerState::Standing,
+										MeleeAttack => PlayerState::MeleeAttacking(0,25),
+										Armor => PlayerState::Standing,
+										RangeAttack => PlayerState::RangeTargeting,
+										Vision => PlayerState::Standing,
+										Build => PlayerState::BuildPlacing(0, 25),
+										Repair => PlayerState::Repairing,
+										ButtonPress => PlayerState::ButtonPressing,
+										Heal => PlayerState::Healing
+									}
+								}
+							},
+							(PlayerState::Standing, facing, primary, secondary) => {
+								println!("Player state: {:?}, direction: {:?}, primary: {}, secondary: {}", battle_player.state, facing, primary, secondary);
+								todo!("Button combo for standing not implemented")
+							},
 							(PlayerState::Running, Some(x), false, false) => {
 								//still running
 								battle_player.facing_vector = x;
@@ -142,7 +183,10 @@ impl BattleContext{
 							(PlayerState::Running, None, _, _) =>{
 								battle_player.state = PlayerState::Standing;
 							},
-							(PlayerState::Running, _,_,_) =>todo!("Button combo for running not implemented"),
+							(PlayerState::Running, facing, primary, secondary) =>{
+								println!("Player state: {:?}, direction: {:?}, primary: {}, secondary: {}", battle_player.state, facing, primary, secondary);
+								todo!("Button combo for running not implemented")
+							},
 							(PlayerState::Learning(_,_,_),_,false,false) =>{
 								battle_player.state = PlayerState::Standing;
 							},
@@ -150,7 +194,6 @@ impl BattleContext{
 								//if player is standing in a learning zone
 								let player_grid = battle_player.game_coord.to_grid_coord();
 								let player_in_plot = battle_context.ability_plots.iter().find(|plot| plot.pos == player_grid);
-								println!("coordinates: {:?}, {:?}", player_grid, battle_player.game_coord);
 								if let Some(_) = player_in_plot {
 									battle_player.state = PlayerState::Learning(ActionButton::Primary, curr+1, *max);
 								}else{
@@ -184,7 +227,72 @@ impl BattleContext{
 								}
 								battle_player.state = PlayerState::Standing;
 							},
-							(PlayerState::Learning(_,_,_),_,_,_) => todo!("Button combo for learning not implemented"),
+							(PlayerState::Learning(_,_,_),facing, primary, secondary) => {
+								println!("Player state: {:?}, direction: {:?}, primary: {}, secondary: {}", battle_player.state, facing, primary, secondary);
+								todo!("Button combo for learning not implemented")
+							},
+							(PlayerState::BuildPlacing(_,_), None, false, false) => {
+								battle_player.state = PlayerState::Standing;
+							},
+							(PlayerState::BuildPlacing(_,_), Some(angle), false, false) => {
+								battle_player.state = PlayerState::Running;
+								battle_player.facing_vector = angle;
+								battle_player.snapped_facing_vector = Direction::from_facing_vector(angle);
+							},
+							(PlayerState::BuildPlacing(curr, max), facing, true, false) if curr < max => {
+								if let Some(x) = facing {
+									battle_player.snapped_facing_vector = Direction::from_facing_vector(x);
+									battle_player.facing_vector = x;
+								}
+								battle_player.state = match battle_player.ability_primary {
+									Build => PlayerState::BuildPlacing(curr+1, *max),
+									_ => PlayerState::Standing
+								};
+							},
+							(PlayerState::BuildPlacing(curr, max), _, true, false) if curr >= max => {
+								if let Build = battle_player.ability_primary {
+									let build_endpoints = match battle_player.snapped_facing_vector{
+										Direction::North => (battle_player.game_coord.to_grid_coord().top_left(), battle_player.game_coord.to_grid_coord().top_right()),
+										Direction::South => (battle_player.game_coord.to_grid_coord().bottom_left(), battle_player.game_coord.to_grid_coord().bottom_right()),
+										Direction::West => (battle_player.game_coord.to_grid_coord().top_left(), battle_player.game_coord.to_grid_coord().bottom_left()),
+										Direction::East => (battle_player.game_coord.to_grid_coord().top_right(), battle_player.game_coord.to_grid_coord().bottom_right())
+									};
+									let new_wall = Wall { endpoints: build_endpoints, health: (100, 100) };
+									if battle_context.walls.iter().all(|wall| wall.endpoints != new_wall.endpoints){
+										battle_context.walls.push(new_wall);
+									}
+								}
+								battle_player.state = PlayerState::Standing;
+							},
+							(PlayerState::BuildPlacing(curr, max), facing, false, true) if curr < max => {
+								if let Some(x) = facing {
+									battle_player.snapped_facing_vector = Direction::from_facing_vector(x);
+									battle_player.facing_vector = x;
+								}
+								battle_player.state = match battle_player.ability_secondary {
+									Build => PlayerState::BuildPlacing(curr+1, *max),
+									_ => PlayerState::Standing
+								};
+							},
+							(PlayerState::BuildPlacing(curr, max), _, false, true) if curr >= max => {
+								if let Build = battle_player.ability_secondary {
+									let build_endpoints = match battle_player.snapped_facing_vector{
+										Direction::North => (battle_player.game_coord.to_grid_coord().top_left(), battle_player.game_coord.to_grid_coord().top_right()),
+										Direction::South => (battle_player.game_coord.to_grid_coord().bottom_left(), battle_player.game_coord.to_grid_coord().bottom_right()),
+										Direction::West => (battle_player.game_coord.to_grid_coord().top_left(), battle_player.game_coord.to_grid_coord().bottom_left()),
+										Direction::East => (battle_player.game_coord.to_grid_coord().top_right(), battle_player.game_coord.to_grid_coord().bottom_right())
+									};
+									let new_wall = Wall { endpoints: build_endpoints, health: (100, 100) };
+									if battle_context.walls.iter().all(|wall| wall.endpoints != new_wall.endpoints){
+										battle_context.walls.push(new_wall);
+									}
+								}
+								battle_player.state = PlayerState::Standing;
+							},
+							(PlayerState::BuildPlacing(_, _), facing, primary, secondary) => {
+								println!("Player state: {:?}, direction: {:?}, primary: {}, secondary: {}", battle_player.state, facing, primary, secondary);
+								todo!("Button combo for build placing not implemented")
+							},
 							(s,d,a,b)=>{
 								println!("Player state: {:?}, direction: {:?}, a: {}, b: {}", s, d, a, b);
 								todo!("Not implemented")
@@ -272,6 +380,7 @@ impl BattleRenderable for BattlePlayerContext{
 			PlayerState::Standing => Color::RGB(0,255,0),
 			PlayerState::Running => Color::RGB(255, 255, 0),
 			PlayerState::Learning(_,_,_) => Color::RGB(255, 127, 0),
+			PlayerState::BuildPlacing(_,_) => Color::RGB(255, 127,0),
 			_ => todo!()
 		};
 		//player learning rectangle is a rectangle that fills from bottom to top as the player learns an ability
@@ -335,12 +444,13 @@ pub enum PlayerState{
 	Standing,
 	Running,
 	Learning(ActionButton, u32, u32),
-	MeleeAttacking,
+	MeleeAttacking(u32, u32),
 	RangeTargeting,
 	RangeAttacking,
 	ButtonPressing,
 	BuildChoosing,
-	BuildPlacing,
+	BuildPlacing(u32, u32),
+	Repairing,
 	Building,
 	Healing
 }
@@ -383,6 +493,9 @@ pub fn render_battle(canvas: &mut WindowCanvas, background_texture: &Texture, ct
 	ctx.button.render(canvas, background_texture, ctx);
 	for ability_plot in &ctx.ability_plots{
 		ability_plot.render(canvas, background_texture, ctx);
+	}
+	for wall in &ctx.walls{
+		wall.render(canvas, background_texture, ctx);
 	}
 	ctx.player.render(canvas, background_texture, ctx);
 	Hud::from_player(&ctx.player).render(canvas, background_texture, ctx);

@@ -1,4 +1,4 @@
-use sdl2::pixels::Color;
+use sdl2::image::LoadTexture;
 use sdl2::rect::Rect;
 use sdl2::render::{Texture, WindowCanvas};
 use crate::battle_objects::coordinates::GridCoord;
@@ -29,15 +29,19 @@ impl Button {
 }
 
 impl BattleRenderable for Button{
-	fn render(&self, canvas: &mut WindowCanvas, background_texture: &Texture, ctx: &BattleContext) {
+	fn render(&self, canvas: &mut WindowCanvas, _background_texture: &Texture, ctx: &BattleContext) {
+		let texture_creator = canvas.texture_creator();
+		let button_texture = match self.state {
+			ButtonState::NeverPressed => texture_creator.load_texture("assets/images/hotel_bell_gray.png").unwrap(),
+			ButtonState::Unpressed(_, _) => texture_creator.load_texture("assets/images/hotel_bell_gray.png").unwrap(),
+			ButtonState::Pressed(_, _) => texture_creator.load_texture("assets/images/hotel_bell_yellow.png").unwrap(),
+		};
 		let camera = &ctx.camera_state;
 		let display_rect_center = self.pos.center().to_display_coord(camera.pos, camera.scale, canvas.output_size().unwrap());
 		let button_rect = Rect::from_center(
 			display_rect_center,
 			(camera.scale * 16.0) as u32,
 			(camera.scale * 16.0) as u32);
-		let button_color = Color::RGB(255, 128, 0);
-		canvas.set_draw_color(button_color);
-		canvas.fill_rect(button_rect).unwrap();
+		canvas.copy(&button_texture, None, Some(button_rect)).unwrap();
 	}
 }
