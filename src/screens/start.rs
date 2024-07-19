@@ -27,33 +27,29 @@ impl StartScreenContext{
 	}
 
 	pub fn handle_tick(game_obj: &mut GameObject, input_state: &InputState, _sound_manager: &mut SoundManager){
-		match game_obj.phase {
-			GameContext::StartScreen(start_screen_context) => {
-				match start_screen_context.state {
-					StartScreenState::FadeIn(a, b) if a == b => {
-						game_obj.phase = GameContext::StartScreen(StartScreenContext{state: StartScreenState::Waiting})
-					},
-					StartScreenState::FadeIn(a, b) if a > b => unreachable!("Frame count above maximum"),
-					StartScreenState::FadeIn(a,b) => {
-						game_obj.phase = GameContext::StartScreen(StartScreenContext{state: StartScreenState::FadeIn(a+1, b)})
-					},
-					StartScreenState::Waiting => match input_state.btn_start{
-						true => {
-							game_obj.phase = GameContext::StartScreen(StartScreenContext{state: StartScreenState::FadeOut(0,30)})
-						},
-						false => (),
-					},
-					StartScreenState::FadeOut(a,b) if a==b => {
-						game_obj.phase = GameContext::Battle(BattleContext::from_game_object(game_obj))
-					},
-					StartScreenState::FadeOut(a, b) if a > b => unreachable!("Frame count above maximum"),
-					StartScreenState::FadeOut(a, b) => {
-						game_obj.phase = GameContext::StartScreen(StartScreenContext{state: StartScreenState::FadeOut(a+1,b)})
-					}
-				}
+		let GameContext::StartScreen(start_screen_context) = game_obj.phase else { unreachable!("Game object is not in StartScreen phase") };
+		match start_screen_context.state {
+			StartScreenState::FadeIn(a, b) if a == b => {
+				game_obj.phase = GameContext::StartScreen(StartScreenContext{state: StartScreenState::Waiting})
 			},
-			_=>unreachable!("Should not be able to call handle_tick from start screen while not in start screen phase.")
-		};
+			StartScreenState::FadeIn(a, b) if a > b => unreachable!("Frame count above maximum"),
+			StartScreenState::FadeIn(a,b) => {
+				game_obj.phase = GameContext::StartScreen(StartScreenContext{state: StartScreenState::FadeIn(a+1, b)})
+			},
+			StartScreenState::Waiting => match input_state.btn_start{
+				true => {
+					game_obj.phase = GameContext::StartScreen(StartScreenContext{state: StartScreenState::FadeOut(0,30)})
+				},
+				false => (),
+			},
+			StartScreenState::FadeOut(a,b) if a==b => {
+				game_obj.phase = GameContext::Battle(BattleContext::from_game_object(game_obj))
+			},
+			StartScreenState::FadeOut(a, b) if a > b => unreachable!("Frame count above maximum"),
+			StartScreenState::FadeOut(a, b) => {
+				game_obj.phase = GameContext::StartScreen(StartScreenContext{state: StartScreenState::FadeOut(a+1,b)})
+			}
+		}
 	}
 }
 

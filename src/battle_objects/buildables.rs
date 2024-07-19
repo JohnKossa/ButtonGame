@@ -29,8 +29,8 @@ impl BattleRenderable for Wall{
 		};
 		canvas.set_draw_color(draw_color);
 		canvas.draw_line(
-			self.endpoints.0.to_display_coord(camera_coord,camera_scale,canvas.output_size().unwrap()),
-			self.endpoints.1.to_display_coord(camera_coord,camera_scale,canvas.output_size().unwrap())
+			self.endpoints.0.to_display_coord(camera_coord, camera_scale ,canvas.output_size().unwrap()),
+			self.endpoints.1.to_display_coord(camera_coord, camera_scale, canvas.output_size().unwrap())
 		).unwrap();
 	}
 }

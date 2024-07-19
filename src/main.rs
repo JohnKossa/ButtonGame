@@ -15,6 +15,8 @@ use sound_manager::SoundManager;
 use game_context::{GameContext, GameObject, Player};
 use crate::screens::start::StartScreenContext;
 
+static TICK_RATE: u32 = 30;
+
 fn main() {
 	let sdl_context = sdl2::init().expect("Unable to create sdl context");
 	let controller_subsystem = sdl_context
@@ -22,11 +24,6 @@ fn main() {
 		.expect("Unable to create game controller subsystem");
 	let video_subsystem = sdl_context.video().expect("Unable to initialize sdl video context");
 	let mut my_sound_manager = SoundManager::new();
-	// let file = BufReader::new(File::open("assets/sounds/Cool-Adventure-Intro.mp3").unwrap());
-	// let source = Decoder::new(file).unwrap();
-	// my_sound_manager
-	//      .play_looping("bg", source)
-	//      .set_volume(0.2);
 	let _controller = controller_subsystem.open(0);
 	let controller_settings = ControllerSettings::new();
 	let window = video_subsystem.window("Button Game", 1080, 720)
@@ -45,7 +42,7 @@ fn main() {
 
 	let mut events = sdl_context.event_pump()
 		.expect("Unable to initialize sdl event pump");
-	let target_frame_duration = Duration::from_millis(1000 / 30); // 60 FPS
+	let target_frame_duration = Duration::from_millis(1000 / TICK_RATE as u64);
 	let mut input_state = InputState::new();
 
 	let mut game_obj = GameObject{
@@ -67,7 +64,7 @@ fn main() {
 		game_obj.handle_tick(&input_state, &mut my_sound_manager);
 		game_obj.render(&mut canvas, &background_texture);
 
-		// Sleep if we finished this frame early so we lock to the desired framerate
+		// Sleep if we finished this frame early, so we lock to the desired framerate
 		let frame_duration = frame_start.elapsed();
 		if let Some(remaining_duration) = target_frame_duration.checked_sub(frame_duration) {
 			std::thread::sleep(remaining_duration);
