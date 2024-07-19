@@ -293,9 +293,29 @@ impl BattleContext{
 						println!("Player state: {:?}, direction: {:?}, primary: {}, secondary: {}", battle_player.state, facing, primary, secondary);
 						todo!("Button combo for build placing not implemented")
 					},
+					(PlayerState::MeleeAttacking(_,_), _, _, _) => {
+						battle_player.state = PlayerState::Standing;
+						//TODO implement
+					},
+					(PlayerState::RangeTargeting, _, _, _) =>{
+						battle_player.state = PlayerState::Standing;
+						//TODO implement
+					},
+					(PlayerState::Healing, _, _, _) =>{
+						battle_player.state = PlayerState::Standing;
+						//TODO implement
+					},
+					(PlayerState::Repairing, _, _, _) =>{
+						battle_player.state = PlayerState::Standing;
+						//TODO implement
+					},
+					(PlayerState::ButtonPressing, _, _, _) =>{
+						battle_player.state = PlayerState::Standing;
+						//TODO implement
+					},
 					(s,d,a,b)=>{
-						println!("Player state: {:?}, direction: {:?}, a: {}, b: {}", s, d, a, b);
-						todo!("Not implemented")
+						println!("Not Implemented: Player state: {:?}, direction: {:?}, a: {}, b: {}", s, d, a, b);
+						//todo!("Not implemented")
 					},
 				}
 				//TODO broadcast moves
@@ -389,7 +409,7 @@ impl BattleRenderable for BattlePlayerContext{
 		};
 		canvas.set_draw_color(player_color);
 		canvas.fill_rect(player_rect).unwrap();
-		if let PlayerState::Learning(_,cur,max) = player.state{
+		let mut render_progress = |cur, max| {
 			render_progress_bar(
 				canvas,
 				player_rect.x(),
@@ -398,6 +418,25 @@ impl BattleRenderable for BattlePlayerContext{
 				player_rect.height(),
 				(cur as usize, max as usize)
 			);
+		};
+		match player.state {
+			PlayerState::Learning(_, cur, max) => {
+				render_progress(cur, max);
+			},
+			PlayerState::Standing => {}
+			PlayerState::Running => {}
+			PlayerState::MeleeAttacking(cur, max) => {
+				render_progress(cur, max);
+			}
+			PlayerState::RangeTargeting => {}
+			PlayerState::RangeAttacking => {}
+			PlayerState::ButtonPressing => {}
+			PlayerState::BuildChoosing => {}
+			PlayerState::BuildPlacing(cur, max) => {
+				render_progress(cur, max);
+			}
+			PlayerState::Repairing => {}
+			PlayerState::Healing => {}
 		}
 		canvas.set_draw_color(Color::MAGENTA);
 		canvas.draw_line(player_facing_indicator_points.0, player_facing_indicator_points.1).unwrap();
