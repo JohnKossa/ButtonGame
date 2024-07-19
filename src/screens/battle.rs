@@ -136,7 +136,7 @@ impl BattleContext{
 								Vision => PlayerState::Standing,
 								Build => PlayerState::BuildPlacing(0, 25),
 								Repair => PlayerState::Repairing(0, 25),
-								ButtonPress => PlayerState::ButtonPressing,
+								ButtonPress => PlayerState::ButtonPressing(0, 25),
 								Heal => PlayerState::Healing(0, 25)
 							}
 						}
@@ -157,7 +157,7 @@ impl BattleContext{
 								Vision => PlayerState::Standing,
 								Build => PlayerState::BuildPlacing(0, 25),
 								Repair => PlayerState::Repairing(0, 25),
-								ButtonPress => PlayerState::ButtonPressing,
+								ButtonPress => PlayerState::ButtonPressing(0, 25),
 								Heal => PlayerState::Healing(0, 25)
 							}
 						}
@@ -309,7 +309,7 @@ impl BattleContext{
 						battle_player.state = PlayerState::Standing;
 						//TODO implement
 					},
-					(PlayerState::ButtonPressing, _, _, _) =>{
+					(PlayerState::ButtonPressing(_, _), _, _, _) =>{
 						battle_player.state = PlayerState::Standing;
 						//TODO implement
 					},
@@ -402,7 +402,7 @@ impl BattleRenderable for BattlePlayerContext{
 			PlayerState::MeleeAttacking(_, _) => Color::RGB(255, 127, 0),
 			PlayerState::RangeTargeting => Color::RGB(255, 127, 0),
 			PlayerState::RangeAttacking(_,_) => Color::RGB(255, 127, 0),
-			PlayerState::ButtonPressing => Color::RGB(255, 127, 0),
+			PlayerState::ButtonPressing(_,_) => Color::RGB(255, 127, 0),
 			PlayerState::BuildChoosing => Color::RGB(255, 127, 0),
 			PlayerState::Repairing(_,_) => Color::RGB(255, 127, 0),
 			PlayerState::Healing(_,_) => Color::RGB(255, 127, 0),
@@ -432,7 +432,7 @@ impl BattleRenderable for BattlePlayerContext{
 			PlayerState::RangeAttacking(cur, max) => {
 				render_progress(cur, max);
 			}
-			PlayerState::ButtonPressing => {}
+			PlayerState::ButtonPressing(_,_) => {}
 			PlayerState::BuildChoosing => {}
 			PlayerState::BuildPlacing(cur, max) => {
 				render_progress(cur, max);
@@ -492,7 +492,7 @@ pub enum PlayerState{
 	MeleeAttacking(u32, u32),
 	RangeTargeting,
 	RangeAttacking(u32, u32),
-	ButtonPressing,
+	ButtonPressing(u32, u32),
 	BuildChoosing,
 	BuildPlacing(u32, u32),
 	Repairing(u32, u32),
