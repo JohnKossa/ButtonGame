@@ -14,6 +14,7 @@ use crate::battle_objects::coordinates::{GridCoord, GameCoord, Direction};
 use crate::battle_objects::ability_plots::AbilityPlot;
 use crate::battle_objects::hud::Hud;
 use crate::screens::battle::Ability::{Blank, MeleeAttack, Armor, RangeAttack, Vision, Build, Repair, ButtonPress, Heal};
+use crate::utils::render_utils::render_progress_bar;
 
 #[derive(Clone)]
 pub enum BattleState{
@@ -361,6 +362,7 @@ impl BattlePlayerContext{
 			Direction::East => (corners.1, corners.3),
 		}
 	}
+
 }
 
 impl BattleRenderable for BattlePlayerContext{
@@ -377,29 +379,31 @@ impl BattleRenderable for BattlePlayerContext{
 			(camera.scale * 16.0) as u32);
 		let player_facing_indicator_points = player.edge_coords(16, camera.scale, camera.pos, canvas_size);
 		let player_color = match player.state{
-			PlayerState::Standing => Color::RGB(0,255,0),
-			PlayerState::Running => Color::RGB(255, 255, 0),
+			PlayerState::Standing => Color::RED,
+			PlayerState::Running => Color::YELLOW,
 			PlayerState::Learning(_,_,_) => Color::RGB(255, 127, 0),
 			PlayerState::BuildPlacing(_,_) => Color::RGB(255, 127,0),
-			_ => todo!()
+			PlayerState::MeleeAttacking(_, _) => Color::RGB(255, 127, 0),
+			PlayerState::RangeTargeting => Color::RGB(255, 127, 0),
+			PlayerState::RangeAttacking => Color::RGB(255, 127, 0),
+			PlayerState::ButtonPressing => Color::RGB(255, 127, 0),
+			PlayerState::BuildChoosing => Color::RGB(255, 127, 0),
+			PlayerState::Repairing => Color::RGB(255, 127, 0),
+			PlayerState::Healing => Color::RGB(255, 127, 0),
 		};
-		//player learning rectangle is a rectangle that fills from bottom to top as the player learns an ability
-		let progress_pct = match player.state{
-			PlayerState::Learning(_, curr, max) => curr as f32 / max as f32,
-			_ => 0.0
-		};
-		let progress_pixels = (player_rect.height() as f32 * progress_pct) as u32;
-		let progress_rectangle = Rect::new(
-			player_rect.x(),
-			player_rect.y() + player_rect.height() as i32 - progress_pixels as i32,
-			player_rect.width(),
-			progress_pixels
-		);
 		canvas.set_draw_color(player_color);
 		canvas.fill_rect(player_rect).unwrap();
-		canvas.set_draw_color(Color::RGB(255,255,255));
-		canvas.fill_rect(progress_rectangle).unwrap();
-		canvas.set_draw_color(Color::RGB(255,0,255));
+		if let PlayerState::Learning(_,cur,max) = player.state{
+			render_progress_bar(
+				canvas,
+				player_rect.x(),
+				player_rect.y(),
+				player_rect.width(),
+				player_rect.height(),
+				(cur as usize, max as usize)
+			);
+		}
+		canvas.set_draw_color(Color::MAGENTA);
 		canvas.draw_line(player_facing_indicator_points.0, player_facing_indicator_points.1).unwrap();
 	}
 }
@@ -451,7 +455,6 @@ pub enum PlayerState{
 	BuildChoosing,
 	BuildPlacing(u32, u32),
 	Repairing,
-	Building,
 	Healing
 }
 

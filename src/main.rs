@@ -5,6 +5,7 @@ mod screens;
 mod sound_manager;
 mod game_context;
 mod battle_objects;
+mod utils;
 
 use std::time::{Duration, Instant};
 use sdl2::image::{LoadTexture};

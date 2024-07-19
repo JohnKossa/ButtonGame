@@ -22,7 +22,7 @@ impl BattleRenderable for AbilityPlot{
 			(camera_scale*16.0) as u32,
 			(camera_scale*16.0) as u32
 		);
-		canvas.set_draw_color(Color::RGBA(0, 128, 0, 64));
+		canvas.set_draw_color(Color::RGB(0, 128, 0));
 		canvas.fill_rect(plot_rect).unwrap();
 	}
 }

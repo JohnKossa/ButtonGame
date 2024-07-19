@@ -48,7 +48,6 @@ impl SoundManager {
 		if !self.playing_sounds.contains_key(name) {
 			let (stream, stream_handle) = OutputStream::try_default().unwrap();
 			let new_sink = match Sink::try_new(&stream_handle){
-				//let new_sink = match Sink::try_new(&self.stream_handle){
 				Ok(handle)=>handle,
 				Err(why) => {
 					panic!("{}",why);
@@ -65,11 +64,7 @@ impl SoundManager {
 		sink_obj.append(
 			Decoder::new(
 				BufReader::new(
-					File::open(
-						Path::new(
-							self.file_registry.get(register_name).unwrap()
-						)
-					).unwrap()
+					File::open(Path::new(self.file_registry.get(register_name).unwrap())).unwrap()
 				)
 			).unwrap()
 		);
@@ -99,11 +94,7 @@ impl SoundManager {
 		sink_obj.append(
 			Decoder::new(
 				BufReader::new(
-					File::open(
-						Path::new(
-							self.file_registry.get(register_name).unwrap()
-						)
-					).unwrap()
+					File::open(Path::new(self.file_registry.get(register_name).unwrap())).unwrap()
 				)
 			).unwrap().repeat_infinite()
 		);

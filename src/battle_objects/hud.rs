@@ -1,5 +1,7 @@
+use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use crate::screens::battle::{BattlePlayerContext, BattleRenderable};
+use crate::utils::render_utils::render_text;
 
 pub struct Hud{
 	pub health: (usize, usize),
@@ -20,33 +22,20 @@ impl Hud{
 impl BattleRenderable for Hud {
 	fn render(&self, canvas: &mut sdl2::render::WindowCanvas, _background_texture: &sdl2::render::Texture, _ctx: &crate::screens::battle::BattleContext) {
 		//render a health bar
-		canvas.set_draw_color(sdl2::pixels::Color::RGB(64, 64, 64));
+		canvas.set_draw_color(Color::RGB(64, 64, 64));
 		let health_bar_width = 300;
 		canvas.fill_rect(Rect::new(10, 10, health_bar_width, 30)).unwrap();
 		let fill_width = ((self.health.0 as f32 / self.health.1 as f32) * health_bar_width as f32) as u32;
-		canvas.set_draw_color(sdl2::pixels::Color::RGB(255, 0, 0));
+		canvas.set_draw_color(Color::RED);
 		canvas.fill_rect(Rect::new(10, 10, fill_width, 30)).unwrap();
-		let ttf_context = sdl2::ttf::init().unwrap();
-		let font = ttf_context.load_font("assets/fonts/The_Frontman.ttf", 32).unwrap();
 
+		let ttf_context = sdl2::ttf::init().unwrap();
 		if self.ability_primary.len()>0{
-			let surface = font.render(&self.ability_primary)
-				.blended(sdl2::pixels::Color::RGB(255, 255, 255))
-				.unwrap();
-			let texture_creator = canvas.texture_creator();
-			let texture = texture_creator.create_texture_from_surface(&surface).unwrap();
-			let target_rect = Rect::new(10, 50, 200, 50);
-			canvas.copy(&texture, None, Some(target_rect)).expect("Couldn't write start screen text.");
+			render_text(canvas, &ttf_context, &self.ability_primary, 32, Color::WHITE, Rect::new(10, 50, 200, 50));
 		}
 
 		if self.ability_secondary.len()>0{
-			let surface = font.render(&self.ability_secondary)
-				.blended(sdl2::pixels::Color::RGB(255, 255, 255))
-				.unwrap();
-			let texture_creator = canvas.texture_creator();
-			let texture = texture_creator.create_texture_from_surface(&surface).unwrap();
-			let target_rect = Rect::new(10, 110, 200, 50);
-			canvas.copy(&texture, None, Some(target_rect)).expect("Couldn't write start screen text.");
+			render_text(canvas, &ttf_context, &self.ability_secondary, 32, Color::WHITE, Rect::new(10, 110, 200, 50));
 		}
 	}
 }

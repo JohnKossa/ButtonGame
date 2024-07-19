@@ -1,3 +1,4 @@
+use sdl2::pixels::Color;
 use crate::battle_objects::coordinates::{GameCoord};
 use crate::screens::battle::BattleRenderable;
 
@@ -21,9 +22,9 @@ impl BattleRenderable for Wall{
 		let camera_coord = ctx.camera_state.pos;
 		let camera_scale = ctx.camera_state.scale;
 		let draw_color = match self.health.0 as f32 / self.health.1 as f32{
-			x if x > 0.00 && x<=0.25 => sdl2::pixels::Color::RGB(255, 0, 0),
-			x if x > 0.25 && x<=0.75 => sdl2::pixels::Color::RGB(255, 255, 0),
-			x if x > 0.75 && x<=1.0 => sdl2::pixels::Color::RGB(0, 255, 0),
+			x if x > 0.00 && x<=0.25 => Color::RED,
+			x if x > 0.25 && x<=0.75 => Color::YELLOW,
+			x if x > 0.75 && x<=1.0 => Color::GREEN,
 			_ => unreachable!("Health ratio outside of 0 to 1 range")
 		};
 		canvas.set_draw_color(draw_color);
