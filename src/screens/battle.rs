@@ -135,9 +135,9 @@ impl BattleContext{
 								RangeAttack => PlayerState::RangeTargeting,
 								Vision => PlayerState::Standing,
 								Build => PlayerState::BuildPlacing(0, 25),
-								Repair => PlayerState::Repairing,
+								Repair => PlayerState::Repairing(0, 25),
 								ButtonPress => PlayerState::ButtonPressing,
-								Heal => PlayerState::Healing
+								Heal => PlayerState::Healing(0, 25)
 							}
 						}
 					},
@@ -156,9 +156,9 @@ impl BattleContext{
 								RangeAttack => PlayerState::RangeTargeting,
 								Vision => PlayerState::Standing,
 								Build => PlayerState::BuildPlacing(0, 25),
-								Repair => PlayerState::Repairing,
+								Repair => PlayerState::Repairing(0, 25),
 								ButtonPress => PlayerState::ButtonPressing,
-								Heal => PlayerState::Healing
+								Heal => PlayerState::Healing(0, 25)
 							}
 						}
 					},
@@ -301,11 +301,11 @@ impl BattleContext{
 						battle_player.state = PlayerState::Standing;
 						//TODO implement
 					},
-					(PlayerState::Healing, _, _, _) =>{
+					(PlayerState::Healing(_,_), _, _, _) =>{
 						battle_player.state = PlayerState::Standing;
 						//TODO implement
 					},
-					(PlayerState::Repairing, _, _, _) =>{
+					(PlayerState::Repairing(_,_), _, _, _) =>{
 						battle_player.state = PlayerState::Standing;
 						//TODO implement
 					},
@@ -401,11 +401,11 @@ impl BattleRenderable for BattlePlayerContext{
 			PlayerState::BuildPlacing(_,_) => Color::RGB(255, 127,0),
 			PlayerState::MeleeAttacking(_, _) => Color::RGB(255, 127, 0),
 			PlayerState::RangeTargeting => Color::RGB(255, 127, 0),
-			PlayerState::RangeAttacking => Color::RGB(255, 127, 0),
+			PlayerState::RangeAttacking(_,_) => Color::RGB(255, 127, 0),
 			PlayerState::ButtonPressing => Color::RGB(255, 127, 0),
 			PlayerState::BuildChoosing => Color::RGB(255, 127, 0),
-			PlayerState::Repairing => Color::RGB(255, 127, 0),
-			PlayerState::Healing => Color::RGB(255, 127, 0),
+			PlayerState::Repairing(_,_) => Color::RGB(255, 127, 0),
+			PlayerState::Healing(_,_) => Color::RGB(255, 127, 0),
 		};
 		canvas.set_draw_color(player_color);
 		canvas.fill_rect(player_rect).unwrap();
@@ -429,14 +429,20 @@ impl BattleRenderable for BattlePlayerContext{
 				render_progress(cur, max);
 			}
 			PlayerState::RangeTargeting => {}
-			PlayerState::RangeAttacking => {}
+			PlayerState::RangeAttacking(cur, max) => {
+				render_progress(cur, max);
+			}
 			PlayerState::ButtonPressing => {}
 			PlayerState::BuildChoosing => {}
 			PlayerState::BuildPlacing(cur, max) => {
 				render_progress(cur, max);
 			}
-			PlayerState::Repairing => {}
-			PlayerState::Healing => {}
+			PlayerState::Repairing(cur, max) => {
+				render_progress(cur, max);
+			}
+			PlayerState::Healing(cur, max) => {
+				render_progress(cur, max);
+			}
 		}
 		canvas.set_draw_color(Color::MAGENTA);
 		canvas.draw_line(player_facing_indicator_points.0, player_facing_indicator_points.1).unwrap();
@@ -485,12 +491,12 @@ pub enum PlayerState{
 	Learning(ActionButton, u32, u32),
 	MeleeAttacking(u32, u32),
 	RangeTargeting,
-	RangeAttacking,
+	RangeAttacking(u32, u32),
 	ButtonPressing,
 	BuildChoosing,
 	BuildPlacing(u32, u32),
-	Repairing,
-	Healing
+	Repairing(u32, u32),
+	Healing(u32, u32)
 }
 
 pub fn draw_grid(canvas: &mut WindowCanvas, _background_texture: &Texture, ctx: &BattleContext){
