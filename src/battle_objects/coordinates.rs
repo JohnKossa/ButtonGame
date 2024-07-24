@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 use sdl2::rect::Point;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash)]
 pub struct GameCoord{
 	pub x: i32,
 	pub y: i32,
@@ -47,7 +47,7 @@ impl PartialEq for GameCoord {
 	}
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash)]
 pub struct GridCoord{
 	//pub grid_size: i32,
 	pub x: i32,
@@ -57,6 +57,26 @@ pub struct GridCoord{
 impl GridCoord {
 	pub fn grid_size()->i32{
 		20
+	}
+
+	pub fn to_north(&self, amount: i32) -> GridCoord {
+		GridCoord{x: self.x, y: self.y-amount}
+	}
+
+	pub fn to_south(&self, amount: i32) -> GridCoord {
+		GridCoord{x: self.x, y: self.y+amount}
+	}
+
+	pub fn to_east(&self, amount: i32) -> GridCoord {
+		GridCoord{x: self.x+amount, y: self.y}
+	}
+
+	pub fn to_west(&self, amount: i32) -> GridCoord {
+		GridCoord{x: self.x-amount, y: self.y}
+	}
+
+	pub fn offset(&self, offsets: (i32, i32)) -> GridCoord {
+		GridCoord{x: self.x+offsets.0, y: self.y+offsets.1}
 	}
 
 	pub fn top_left(&self) -> GameCoord {

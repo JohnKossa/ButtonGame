@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
 use sdl2::render::{WindowCanvas, Texture};
@@ -15,6 +16,7 @@ use crate::battle_objects::ability_plots::AbilityPlot;
 use crate::battle_objects::hud::Hud;
 use crate::screens::battle::Ability::{Blank, MeleeAttack, Armor, RangeAttack, Vision, Build, Repair, ButtonPress, Heal};
 use crate::utils::render_utils::render_progress_bar;
+use crate::utils::collisions::line_to_line_intersect;
 
 #[derive(Clone)]
 pub enum BattleState{
@@ -45,7 +47,7 @@ impl BattleContext{
 			player: BattlePlayerContext{
 				facing_vector: 0.0,
 				state: PlayerState::Standing,
-				vision_range: 5,
+				base_vision_range: 5,
 				ability_primary: Blank,
 				ability_secondary: Blank,
 				game_coord: GameCoord{ x:150, y:-150 },
@@ -75,19 +77,72 @@ impl BattleContext{
 		// TODO hydrate from save state
 	}
 
-	pub fn get_visible_squares(&self) -> Vec<GridCoord>{
-		//visible squares are a cone of squares projecting from the player and all other players as well as all squares directly adjacent to the player
-		//if a square crosses a wall object, visibility stops projecting from that point
-		let mut to_return = Vec::new();
-		//player square is visible
-		to_return.push(self.player.game_coord.to_grid_coord());
-		//if there's no wall in the direction the player is facing
-		//for the direction the player is facing, add each square in that direction until either a wall is found or the vision range is reached
-		//
+	pub fn get_visible_squares(&self) -> HashSet<GridCoord>{
+		let player = &self.player;
+		let player_square = player.game_coord.to_grid_coord();
+		let center_square = GridCoord{x:0, y:0};
+		let mut visible_squares = vec![center_square];
+		for y in 1..=player.get_vision_range() as i32{
+			visible_squares.push(center_square.to_north(y));
+			for x in 1..=y{
+				visible_squares.push(center_square.offset((-x, -y)));
+				visible_squares.push(center_square.offset((x, -y)));
+			}
+		}
+		match player.snapped_facing_vector{
+			Direction::North => (),
+			Direction::South => {
+				//flip all the y values
+				visible_squares = visible_squares.iter().map(|coord| GridCoord{x: coord.x, y: -coord.y}).collect();
+			},
+			Direction::West => {
+				//y becomes x, x becomes y
+				visible_squares = visible_squares.iter().map(|coord| GridCoord{x: coord.y, y: coord.x}).collect();
+			},
+			Direction::East => {
+				//y becomes -x, x becomes y
+				visible_squares = visible_squares.iter().map(|coord| GridCoord{x: -coord.y, y: coord.x}).collect();
+			}
+		}
+		//add player grid coordinates to all the visible squares
+		visible_squares =  visible_squares
+				.iter()
+				.map(|coord| GridCoord{x: coord.x + player_square.x, y: coord.y + player_square.y})
+				.collect();
 
-		to_return.push(self.player.game_coord.to_grid_coord());
-
-		todo!("not implemented");
+		//get all walls that border the visible squares
+		let all_corners = visible_squares
+				.iter()
+				.flat_map(|coord| vec![
+					coord.top_left(),
+					coord.top_right(),
+					coord.bottom_left(),
+					coord.bottom_right()
+				])
+				.collect::<HashSet<GameCoord>>();
+		let relevant_walls = self.walls.iter().filter(|wall| {
+			let wall_corners = vec![wall.endpoints.0, wall.endpoints.1];
+			wall_corners.iter().any(|corner| all_corners.contains(corner))
+		});
+		let mut start_point:(i32, i32) = match player.snapped_facing_vector{
+			Direction::North => (player_square.center().x, player_square.center().y - GridCoord::grid_size()*0.4 as i32),
+			Direction::South => (player_square.center().x, player_square.center().y + GridCoord::grid_size()*0.4 as i32),
+			Direction::West => (player_square.center().x - GridCoord::grid_size()*0.4 as i32, player_square.center().y),
+			Direction::East => (player_square.center().x + GridCoord::grid_size()*0.4 as i32, player_square.center().y),
+		};
+		let to_return: HashSet<GridCoord> =  visible_squares
+			.into_iter()
+			.filter(|square|{
+				for wall in relevant_walls.clone() {
+					let wall_endpoints = ((wall.endpoints.0.x, wall.endpoints.0.y),(wall.endpoints.1.x, wall.endpoints.1.y));
+					let square_coords = (square.center().x, square.center().y);
+					if line_to_line_intersect((start_point, square_coords), wall_endpoints){
+						return false;
+					}
+				}
+				return true;
+			}).collect();
+		to_return
 	}
 
 	pub fn get_learning_time(&self) -> u32{
@@ -149,7 +204,7 @@ impl BattleContext{
 							battle_player.state = PlayerState::Learning(ActionButton::Secondary, 0, learning_timer)
 						}else{
 							//otherwise, activate the ability assigned to primary
-							battle_player.state = match battle_player.ability_primary {
+							battle_player.state = match battle_player.ability_secondary {
 								Blank => PlayerState::Standing,
 								MeleeAttack => PlayerState::MeleeAttacking(0,25),
 								Armor => PlayerState::Standing,
@@ -348,7 +403,7 @@ impl CameraState{
 pub struct BattlePlayerContext{
 	pub game_coord: GameCoord,
 	pub facing_vector: f32,
-	pub vision_range: u8,
+	pub base_vision_range: u8,
 	pub ability_primary: Ability,
 	pub ability_secondary: Ability,
 	pub snapped_facing_vector: Direction,
@@ -376,6 +431,14 @@ impl BattlePlayerContext{
 			Direction::South => (corners.2, corners.3),
 			Direction::West => (corners.0, corners.2),
 			Direction::East => (corners.1, corners.3),
+		}
+	}
+
+	fn get_vision_range(&self) -> u8{
+		match (self.ability_primary, self.ability_secondary) {
+			(Vision, _) => 2*self.base_vision_range,
+			(_, Vision) => 2*self.base_vision_range,
+			(_, _) => self.base_vision_range
 		}
 	}
 
@@ -504,7 +567,7 @@ pub fn draw_grid(canvas: &mut WindowCanvas, _background_texture: &Texture, ctx: 
 	//keep drawing horizontal lines to the top and botton until we've drawn 3/4 of the height of the screen
 	let camera = &ctx.camera_state;
 	let canvas_dimensions = canvas.output_size().unwrap();
-	canvas.set_draw_color(Color::RGB(64,64,64));
+	canvas.set_draw_color(Color::RGB(32,32,32));
 	//let start_point = camera.pos.to_grid_coord().top_left().to_grid_coord();
 	let start_point = camera.pos.to_grid_coord().top_left().to_display_coord(camera.pos, camera.scale, canvas_dimensions);
 	let grid_width = GridCoord::grid_size();
@@ -542,6 +605,20 @@ pub fn render_battle(canvas: &mut WindowCanvas, background_texture: &Texture, ct
 		wall.render(canvas, background_texture, ctx);
 	}
 	ctx.player.render(canvas, background_texture, ctx);
+	for visible_grid_square in ctx.get_visible_squares(){
+		canvas.set_draw_color(Color::RGB(32, 32, 32));
+		canvas.fill_rect(
+			Rect::from_center(
+				visible_grid_square.center().to_display_coord(
+					ctx.camera_state.pos,
+					ctx.camera_state.scale,
+					canvas_size
+				),
+				(GridCoord::grid_size() as f32 * 0.6) as u32,
+				(GridCoord::grid_size() as f32 * 0.6) as u32
+			)
+		).unwrap();
+	}
 	Hud::from_player(&ctx.player).render(canvas, background_texture, ctx);
 	canvas.present();
 }
