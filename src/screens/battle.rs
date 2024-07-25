@@ -1,21 +1,22 @@
 use std::collections::HashSet;
 use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
-use sdl2::render::{WindowCanvas, Texture};
+use sdl2::render::{Texture, WindowCanvas};
 
 use crate::game_context::{GameContext, GameObject};
-use crate::input::{InputState, get_player_intent_vector};
+use crate::input::{get_player_intent_vector, InputState};
 use crate::sound_manager::SoundManager;
 use crate::battle_objects::button::Button;
 use crate::battle_objects::other_player::OtherPlayer;
 use crate::battle_objects::buildables::{Wall, Window};
 use crate::battle_objects::enemy::Enemy;
 use crate::battle_objects::projectiles::FriendlyProjectile;
-use crate::battle_objects::coordinates::{GridCoord, GameCoord, Direction};
+use crate::battle_objects::coordinates::{Direction, GameCoord, GridCoord};
 use crate::battle_objects::ability_plots::AbilityPlot;
+use crate::battle_objects::battle_player::{BattlePlayerContext, PlayerState};
+use crate::battle_objects::camera::CameraState;
 use crate::battle_objects::hud::Hud;
-use crate::screens::battle::Ability::{Blank, MeleeAttack, Armor, RangeAttack, Vision, Build, Repair, ButtonPress, Heal};
-use crate::utils::render_utils::render_progress_bar;
+use crate::battle_objects::battle_player::Ability::{Armor, Blank, Build, ButtonPress, Heal, MeleeAttack, RangeAttack, Repair, Vision};
 use crate::utils::collisions::line_to_line_intersect;
 
 #[derive(Clone)]
@@ -89,6 +90,14 @@ impl BattleContext{
 				visible_squares.push(center_square.offset((x, -y)));
 			}
 		}
+
+		//add all the other squares directly adjacent of diagonal to the center square
+		visible_squares.push(center_square.to_west(1));
+		visible_squares.push(center_square.to_east(1));
+		visible_squares.push(center_square.to_south(1));
+		visible_squares.push(center_square.offset((-1, 1)));
+		visible_squares.push(center_square.offset((1, 1)));
+
 		match player.snapped_facing_vector{
 			Direction::North => (),
 			Direction::South => {
@@ -124,7 +133,7 @@ impl BattleContext{
 			let wall_corners = vec![wall.endpoints.0, wall.endpoints.1];
 			wall_corners.iter().any(|corner| all_corners.contains(corner))
 		});
-		let mut start_point:(i32, i32) = match player.snapped_facing_vector{
+		let start_point:(i32, i32) = match player.snapped_facing_vector{
 			Direction::North => (player_square.center().x, player_square.center().y - GridCoord::grid_size()*0.4 as i32),
 			Direction::South => (player_square.center().x, player_square.center().y + GridCoord::grid_size()*0.4 as i32),
 			Direction::West => (player_square.center().x - GridCoord::grid_size()*0.4 as i32, player_square.center().y),
@@ -148,11 +157,55 @@ impl BattleContext{
 	pub fn get_learning_time(&self) -> u32{
 		30
 	}
+
 	pub fn handle_tick(game_obj: &mut GameObject, input_state: &InputState, my_sound_manager: &mut SoundManager){
 		let GameContext::Battle(battle_context) = &mut game_obj.phase else {unreachable!("Game object is not in Battle phase")};
 		battle_context.round_time += 1;
 		let learning_timer = battle_context.get_learning_time();
 		let battle_player = &mut battle_context.player;
+
+		//check collisions
+		let player_grid_corner_coords = [
+			battle_player.game_coord.to_grid_coord().top_left(),
+			battle_player.game_coord.to_grid_coord().top_right(),
+			battle_player.game_coord.to_grid_coord().bottom_right(),
+			battle_player.game_coord.to_grid_coord().bottom_left()
+		];
+		//find wall above player if one exists
+		let top_wall: Option<&Wall> = battle_context.walls.iter().find(|wall| {
+			let wall_corners = (wall.endpoints.0, wall.endpoints.1);
+			return (player_grid_corner_coords[0] == wall_corners.0 && player_grid_corner_coords[1] == wall_corners.1) || (player_grid_corner_coords[0] == wall_corners.1 && player_grid_corner_coords[1] == wall_corners.0);
+		});
+		let right_wall: Option<&Wall> = battle_context.walls.iter().find(|wall| {
+			let wall_corners = (wall.endpoints.0, wall.endpoints.1);
+			return (player_grid_corner_coords[1] == wall_corners.0 && player_grid_corner_coords[2] == wall_corners.1) || (player_grid_corner_coords[1] == wall_corners.1 && player_grid_corner_coords[2] == wall_corners.0);
+		});
+		let bottom_wall: Option<&Wall> = battle_context.walls.iter().find(|wall| {
+			let wall_corners = (wall.endpoints.0, wall.endpoints.1);
+			return (player_grid_corner_coords[2] == wall_corners.0 && player_grid_corner_coords[3] == wall_corners.1) || (player_grid_corner_coords[2] == wall_corners.1 && player_grid_corner_coords[3] == wall_corners.0);
+		});
+		let left_wall: Option<&Wall> = battle_context.walls.iter().find(|wall| {
+			let wall_corners = (wall.endpoints.0, wall.endpoints.1);
+			return (player_grid_corner_coords[3] == wall_corners.0 && player_grid_corner_coords[0] == wall_corners.1) || (player_grid_corner_coords[3] == wall_corners.1 && player_grid_corner_coords[0] == wall_corners.0);
+		});
+		let player_collisions = battle_player.get_collisions(top_wall, right_wall, bottom_wall, left_wall);
+		if player_collisions.0{
+			//snap player to bottom of top wall
+			battle_player.game_coord.y = top_wall.unwrap().endpoints.0.y + GridCoord::grid_size()/2;
+		}
+		if player_collisions.1{
+			//snap player to left of right wall
+			battle_player.game_coord.x = right_wall.unwrap().endpoints.0.x - GridCoord::grid_size()/2;
+		}
+		if player_collisions.2{
+			//snap player to top of bottom wall
+			battle_player.game_coord.y = bottom_wall.unwrap().endpoints.0.y - GridCoord::grid_size()/2;
+		}
+		if player_collisions.3{
+			//snap player to right of left wall
+			battle_player.game_coord.x = left_wall.unwrap().endpoints.0.x + GridCoord::grid_size()/2;
+		}
+
 		match battle_context.state {
 			BattleState::Starting => {
 				battle_context.state = BattleState::Live;
@@ -171,8 +224,8 @@ impl BattleContext{
 						battle_player.facing_vector = x;
 						battle_player.snapped_facing_vector = Direction::from_facing_vector(x);
 						const RUNNING_SPEED: f32 = 2.0;
-						battle_player.game_coord.x += (battle_player.facing_vector.cos() * RUNNING_SPEED) as i32;
 						battle_player.game_coord.y -= (battle_player.facing_vector.sin() * RUNNING_SPEED) as i32;
+						battle_player.game_coord.x += (battle_player.facing_vector.cos() * RUNNING_SPEED) as i32;
 						battle_player.state = PlayerState::Running;
 					},
 					(PlayerState::Standing,_, true, false) =>{
@@ -377,167 +430,7 @@ impl BattleContext{
 			},
 			BattleState::Finished => (),
 		};
-	}
-}
 
-#[derive(Clone)]
-pub struct CameraState{
-	pub pos: GameCoord,
-	pub scale: f32,
-}
-
-impl CameraState{
-	pub fn new() -> CameraState{
-		CameraState{pos: GameCoord{x:0, y:0}, scale:1.1}
-	}
-
-	pub fn smooth_scroll(&mut self, target: &GameCoord){
-		let dx = target.x - self.pos.x;
-		let dy = target.y - self.pos.y;
-		self.pos.x = self.pos.x + (0.1 * dx as f32) as i32;
-		self.pos.y = self.pos.y + (0.1 * dy as f32) as i32;
-	}
-}
-
-#[derive(Clone, Copy)]
-pub struct BattlePlayerContext{
-	pub game_coord: GameCoord,
-	pub facing_vector: f32,
-	pub base_vision_range: u8,
-	pub ability_primary: Ability,
-	pub ability_secondary: Ability,
-	pub snapped_facing_vector: Direction,
-	pub state: PlayerState,
-}
-
-impl BattlePlayerContext{
-	fn display_corners(&self, width: u32, scale_factor: f32, center_point: GameCoord, window_dimensions:(u32, u32)) -> (Point, Point, Point, Point){
-		let top_left = GameCoord{x: self.game_coord.x - width as i32/2, y: self.game_coord.y - width as i32/2};
-		let top_right = GameCoord{x: self.game_coord.x + width as i32/2, y: self.game_coord.y - width as i32/2};
-		let bottom_left = GameCoord{x: self.game_coord.x - width as i32/2, y: self.game_coord.y + width as i32/2};
-		let bottom_right = GameCoord{x: self.game_coord.x + width as i32/2, y: self.game_coord.y + width as i32/2};
-		(
-			top_left.to_display_coord(center_point, scale_factor, window_dimensions),
-			top_right.to_display_coord(center_point, scale_factor, window_dimensions),
-			bottom_left.to_display_coord(center_point, scale_factor, window_dimensions),
-			bottom_right.to_display_coord(center_point, scale_factor, window_dimensions)
-		)
-	}
-
-	fn edge_coords(&self, width: u32, scale_factor: f32, center_point: GameCoord, window_dimensions: (u32, u32)) -> (Point, Point){
-		let corners = self.display_corners(width, scale_factor, center_point, window_dimensions);
-		match self.snapped_facing_vector {
-			Direction::North => (corners.0, corners.1),
-			Direction::South => (corners.2, corners.3),
-			Direction::West => (corners.0, corners.2),
-			Direction::East => (corners.1, corners.3),
-		}
-	}
-
-	fn get_vision_range(&self) -> u8{
-		match (self.ability_primary, self.ability_secondary) {
-			(Vision, _) => 2*self.base_vision_range,
-			(_, Vision) => 2*self.base_vision_range,
-			(_, _) => self.base_vision_range
-		}
-	}
-
-}
-
-impl BattleRenderable for BattlePlayerContext{
-	fn render(&self, canvas: &mut WindowCanvas, _background_texture: &Texture, ctx: &BattleContext){
-		let player = &ctx.player;
-		let camera = &ctx.camera_state;
-		let canvas_size = canvas.output_size().unwrap();
-		let player_rect = Rect::from_center(
-			player.game_coord.to_display_coord(
-				camera.pos,
-				camera.scale,
-				canvas.output_size().unwrap()),
-			(camera.scale * 16.0) as u32,
-			(camera.scale * 16.0) as u32);
-		let player_facing_indicator_points = player.edge_coords(16, camera.scale, camera.pos, canvas_size);
-		let player_color = match player.state{
-			PlayerState::Standing => Color::RED,
-			PlayerState::Running => Color::YELLOW,
-			PlayerState::Learning(_,_,_) => Color::RGB(255, 127, 0),
-			PlayerState::BuildPlacing(_,_) => Color::RGB(255, 127,0),
-			PlayerState::MeleeAttacking(_, _) => Color::RGB(255, 127, 0),
-			PlayerState::RangeTargeting => Color::RGB(255, 127, 0),
-			PlayerState::RangeAttacking(_,_) => Color::RGB(255, 127, 0),
-			PlayerState::ButtonPressing(_,_) => Color::RGB(255, 127, 0),
-			PlayerState::BuildChoosing => Color::RGB(255, 127, 0),
-			PlayerState::Repairing(_,_) => Color::RGB(255, 127, 0),
-			PlayerState::Healing(_,_) => Color::RGB(255, 127, 0),
-		};
-		canvas.set_draw_color(player_color);
-		canvas.fill_rect(player_rect).unwrap();
-		let mut render_progress = |cur, max| {
-			render_progress_bar(
-				canvas,
-				player_rect.x(),
-				player_rect.y(),
-				player_rect.width(),
-				player_rect.height(),
-				(cur as usize, max as usize)
-			);
-		};
-		match player.state {
-			PlayerState::Learning(_, cur, max) => {
-				render_progress(cur, max);
-			},
-			PlayerState::Standing => {}
-			PlayerState::Running => {}
-			PlayerState::MeleeAttacking(cur, max) => {
-				render_progress(cur, max);
-			}
-			PlayerState::RangeTargeting => {}
-			PlayerState::RangeAttacking(cur, max) => {
-				render_progress(cur, max);
-			}
-			PlayerState::ButtonPressing(_,_) => {}
-			PlayerState::BuildChoosing => {}
-			PlayerState::BuildPlacing(cur, max) => {
-				render_progress(cur, max);
-			}
-			PlayerState::Repairing(cur, max) => {
-				render_progress(cur, max);
-			}
-			PlayerState::Healing(cur, max) => {
-				render_progress(cur, max);
-			}
-		}
-		canvas.set_draw_color(Color::MAGENTA);
-		canvas.draw_line(player_facing_indicator_points.0, player_facing_indicator_points.1).unwrap();
-	}
-}
-
-#[derive(Clone, Copy)]
-pub enum Ability{
-	Blank,
-	MeleeAttack,
-	Armor,
-	RangeAttack,
-	Vision,
-	Build,
-	Repair,
-	ButtonPress,
-	Heal
-}
-
-impl Ability{
-	pub fn get_hud_text(&self) -> String{
-		match self{
-			Blank => String::from(""),
-			MeleeAttack => String::from("Melee Attack"),
-			Armor => String::from("Armor"),
-			RangeAttack => String::from("Range Attack"),
-			Vision => String::from("Vision"),
-			Build => String::from("Build"),
-			Repair => String::from("Repair"),
-			ButtonPress => String::from("Press Button"),
-			Heal => String::from("Heal"),
-		}
 	}
 }
 
@@ -547,28 +440,12 @@ pub enum ActionButton {
 	Secondary
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum PlayerState{
-	Standing,
-	Running,
-	Learning(ActionButton, u32, u32),
-	MeleeAttacking(u32, u32),
-	RangeTargeting,
-	RangeAttacking(u32, u32),
-	ButtonPressing(u32, u32),
-	BuildChoosing,
-	BuildPlacing(u32, u32),
-	Repairing(u32, u32),
-	Healing(u32, u32)
-}
-
 pub fn draw_grid(canvas: &mut WindowCanvas, _background_texture: &Texture, ctx: &BattleContext){
 	//starting from the camera position, get the grid square, get the top left corner, keep drawin vertical lines to the left and right until we've drawn 3/4 the width of the screen each direction
 	//keep drawing horizontal lines to the top and botton until we've drawn 3/4 of the height of the screen
 	let camera = &ctx.camera_state;
 	let canvas_dimensions = canvas.output_size().unwrap();
 	canvas.set_draw_color(Color::RGB(32,32,32));
-	//let start_point = camera.pos.to_grid_coord().top_left().to_grid_coord();
 	let start_point = camera.pos.to_grid_coord().top_left().to_display_coord(camera.pos, camera.scale, canvas_dimensions);
 	let grid_width = GridCoord::grid_size();
 	let mut x_offset = 0;

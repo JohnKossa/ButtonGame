@@ -1,4 +1,4 @@
-use crate::screens::battle::{PlayerState};
+use crate::battle_objects::battle_player::PlayerState;
 use crate::battle_objects::coordinates::GridCoord;
 
 pub struct Enemy{

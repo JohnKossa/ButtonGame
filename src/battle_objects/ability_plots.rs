@@ -1,8 +1,9 @@
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::{Texture, WindowCanvas};
+use crate::battle_objects::battle_player::Ability;
 use crate::battle_objects::coordinates::GridCoord;
-use crate::screens::battle::{Ability, BattleContext, BattleRenderable};
+use crate::screens::battle::{BattleContext, BattleRenderable};
 
 pub struct AbilityPlot {
 	pub(crate) pos: GridCoord,

@@ -6,3 +6,5 @@ pub(crate) mod projectiles;
 pub(crate) mod coordinates;
 pub(crate) mod ability_plots;
 pub(crate) mod hud;
+pub(crate) mod battle_player;
+pub(crate) mod camera;

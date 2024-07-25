@@ -47,6 +47,12 @@ impl PartialEq for GameCoord {
 	}
 }
 
+impl Into<(i32, i32)> for GameCoord {
+	fn into(self) -> (i32, i32) {
+		(self.x, self.y)
+	}
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash)]
 pub struct GridCoord{
 	//pub grid_size: i32,

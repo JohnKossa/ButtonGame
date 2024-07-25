@@ -1,6 +1,7 @@
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use crate::screens::battle::{BattlePlayerContext, BattleRenderable};
+use crate::battle_objects::battle_player::BattlePlayerContext;
+use crate::screens::battle::BattleRenderable;
 use crate::utils::render_utils::render_text;
 
 pub struct Hud{
