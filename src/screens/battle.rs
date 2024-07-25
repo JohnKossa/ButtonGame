@@ -223,7 +223,7 @@ impl BattleContext{
 					(PlayerState::Standing, Some(x), false, false) => {
 						battle_player.facing_vector = x;
 						battle_player.snapped_facing_vector = Direction::from_facing_vector(x);
-						const RUNNING_SPEED: f32 = 2.0;
+						const RUNNING_SPEED: f32 = BattlePlayerContext::running_speed();
 						battle_player.game_coord.y -= (battle_player.facing_vector.sin() * RUNNING_SPEED) as i32;
 						battle_player.game_coord.x += (battle_player.facing_vector.cos() * RUNNING_SPEED) as i32;
 						battle_player.state = PlayerState::Running;
@@ -278,7 +278,7 @@ impl BattleContext{
 						//still running
 						battle_player.facing_vector = x;
 						battle_player.snapped_facing_vector = Direction::from_facing_vector(x);
-						const RUNNING_SPEED: f32 = 3.0;
+						const RUNNING_SPEED: f32 = BattlePlayerContext::running_speed();
 						battle_player.game_coord.x += (battle_player.facing_vector.cos() * RUNNING_SPEED) as i32;
 						battle_player.game_coord.y -= (battle_player.facing_vector.sin() * RUNNING_SPEED) as i32;
 					},

@@ -23,6 +23,10 @@ impl BattlePlayerContext{
 		16
 	}
 
+	pub const fn running_speed() -> f32{
+		3.0
+	}
+
 	fn display_corners(&self, width: u32, scale_factor: f32, center_point: GameCoord, window_dimensions:(u32, u32)) -> (Point, Point, Point, Point){
 		let top_left = GameCoord{x: self.game_coord.x - width as i32/2, y: self.game_coord.y - width as i32/2};
 		let top_right = GameCoord{x: self.game_coord.x + width as i32/2, y: self.game_coord.y - width as i32/2};
