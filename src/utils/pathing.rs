@@ -98,13 +98,8 @@ pub fn path_to(
 
 	while let Some(current) = open_set.pop() {
 		loop_iterations += 1;
-		// if loop_iterations > 1000 {
-		// 	println!("Pathing loop exceeded 1000 iterations");
-		// 	println!("Open set size is {}", open_set.len());
-		// 	//return None;
-		// }
-		if loop_iterations > 5000{
-			println!("Pathing loop exceeded 5000 iterations");
+		if loop_iterations > 1000 {
+			println!("Pathing loop exceeded 1000 iterations");
 			println!("Open set size is {}", open_set.len());
 			return None;
 		}

@@ -454,7 +454,8 @@ impl BattleContext{
 								if let Some(path_to_button) = path_to(enemy_square, battle_context.button.pos, walls, &enemy_coords) {
 									enemy.behavior = EnemyBehavior::WalkToButton(0, 150, path_to_button);
 								}else{
-									enemy.behavior = EnemyBehavior::AttackWalls(0, 150, Vec::new());
+									enemy.behavior = EnemyBehavior::Idle;
+									// enemy.behavior = EnemyBehavior::AttackWalls(0, 150, Vec::new());
 								}
 							}
 						},
