@@ -1,23 +1,24 @@
-use std::collections::HashSet;
+use std::collections::{HashSet};
 use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
 use sdl2::render::{Texture, WindowCanvas};
 
+use crate::battle_objects::ability_plots::AbilityPlot;
+use crate::battle_objects::battle_player::Ability::{Armor, Blank, Build, ButtonPress, Heal, MeleeAttack, RangeAttack, Repair, Vision};
+use crate::battle_objects::battle_player::{BattlePlayerContext, PlayerState};
+use crate::battle_objects::buildables::{Wall, Window};
+use crate::battle_objects::button::Button;
+use crate::battle_objects::camera::CameraState;
+use crate::battle_objects::coordinates::{Direction, GameCoord, GridCoord};
+use crate::battle_objects::enemy::{Enemy, EnemyBehavior};
+use crate::battle_objects::hud::Hud;
+use crate::battle_objects::other_player::OtherPlayer;
+use crate::battle_objects::projectiles::FriendlyProjectile;
 use crate::game_context::{GameContext, GameObject};
 use crate::input::{get_player_intent_vector, InputState};
 use crate::sound_manager::SoundManager;
-use crate::battle_objects::button::Button;
-use crate::battle_objects::other_player::OtherPlayer;
-use crate::battle_objects::buildables::{Wall, Window};
-use crate::battle_objects::enemy::Enemy;
-use crate::battle_objects::projectiles::FriendlyProjectile;
-use crate::battle_objects::coordinates::{Direction, GameCoord, GridCoord};
-use crate::battle_objects::ability_plots::AbilityPlot;
-use crate::battle_objects::battle_player::{BattlePlayerContext, PlayerState};
-use crate::battle_objects::camera::CameraState;
-use crate::battle_objects::hud::Hud;
-use crate::battle_objects::battle_player::Ability::{Armor, Blank, Build, ButtonPress, Heal, MeleeAttack, RangeAttack, Repair, Vision};
 use crate::utils::collisions::line_to_line_intersect;
+use crate::utils::pathing::path_to;
 
 #[derive(Clone)]
 pub enum BattleState{
@@ -26,6 +27,7 @@ pub enum BattleState{
 	Finished
 }
 
+#[derive(Clone)]
 pub struct BattleContext{
 	pub state: BattleState,
 	pub player: BattlePlayerContext,
@@ -60,7 +62,14 @@ impl BattleContext{
 			windows: Vec::new(),
 			other_players: Vec::new(),
 			friendly_projectiles: Vec::new(),
-			enemies: Vec::new(),
+			enemies: vec![
+				Enemy{ pos: GridCoord {x:10, y:10}.center(), snapped_facing_vector: Direction::North, behavior: EnemyBehavior::Idle, health: (100, 100)},
+				Enemy{ pos: GridCoord {x:10, y:-10}.center(), snapped_facing_vector: Direction::North, behavior: EnemyBehavior::Idle, health: (100, 100)},
+				Enemy{ pos: GridCoord {x:-10, y:10}.center(), snapped_facing_vector: Direction::North, behavior: EnemyBehavior::Idle, health: (100, 100)},
+				Enemy{ pos: GridCoord {x:-10, y:-10}.center(), snapped_facing_vector: Direction::North, behavior: EnemyBehavior::Idle, health: (100, 100)},
+				Enemy{ pos: GridCoord {x:12, y:12}.center(), snapped_facing_vector: Direction::North, behavior: EnemyBehavior::Idle, health: (100, 100)},
+				Enemy{ pos: GridCoord {x:9, y:11}.center(), snapped_facing_vector: Direction::North, behavior: EnemyBehavior::Idle, health: (100, 100)}
+			],
 			ability_plots: vec![
 				AbilityPlot{pos:GridCoord{x:-1, y:-2}, ability:MeleeAttack},
 				AbilityPlot{pos:GridCoord{x:1,  y:-2}, ability:Armor},
@@ -423,14 +432,92 @@ impl BattleContext{
 					},
 					(s,d,a,b)=>{
 						println!("Not Implemented: Player state: {:?}, direction: {:?}, a: {}, b: {}", s, d, a, b);
-						//todo!("Not implemented")
+						todo!("Not implemented")
 					},
+				}
+				//TODO handle enemy moves
+				let all_enemies = battle_context.enemies.clone();
+				for enemy in &mut battle_context.enemies{
+					match &enemy.behavior{
+						EnemyBehavior::Idle => {
+							//if player is within 5 squares of enemy, switch to attacking
+							let player_square = battle_player.clone().game_coord.to_grid_coord();
+							let enemy_square = enemy.pos.to_grid_coord();
+							let player_distance = player_square.pythagorean_distance_to(&enemy_square);
+							let walls = &battle_context.walls;
+							let enemy_coords =  all_enemies.iter().map(|enemy| enemy.pos.to_grid_coord()).collect::<Vec<GridCoord>>();
+							if player_distance <= 7.0{
+								if let Some(path_to_player) = path_to(enemy_square, player_square, walls, &enemy_coords){
+									enemy.behavior = EnemyBehavior::TargetPlayer(0, 150, path_to_player);
+								}
+							}else{
+								if let Some(path_to_button) = path_to(enemy_square, battle_context.button.pos, walls, &enemy_coords) {
+									enemy.behavior = EnemyBehavior::WalkToButton(0, 150, path_to_button);
+								}else{
+									enemy.behavior = EnemyBehavior::AttackWalls(0, 150, Vec::new());
+								}
+							}
+						},
+						EnemyBehavior::WalkToButton(curr, max, _) if curr >= max => {
+							println!("Walk to button time limit reached");
+							enemy.behavior = EnemyBehavior::Idle;
+						},
+						EnemyBehavior::WalkToButton(curr, max, path)  if curr < max => {
+							//println!("Walking to button square {} of {}", curr, max);
+							if let Some(next_square) = path.first(){
+								if enemy.pos.to_grid_coord() == *next_square {
+									enemy.behavior = EnemyBehavior::WalkToButton(curr + 1, *max, path[1..].to_vec());
+								}else{
+									//move towards the next square
+									let target = next_square.center();
+									let enemy_pos = enemy.pos;
+									let angle = (target.y as f32 - enemy_pos.y as f32).atan2(target.x as f32 - enemy_pos.x as f32);
+
+									enemy.pos.x += (angle.cos() * Enemy::speed()) as i32;
+									enemy.pos.y += (angle.sin() * Enemy::speed()) as i32;
+									enemy.behavior = EnemyBehavior::WalkToButton(curr + 1, *max, path.to_vec());
+								}
+							}else{
+								enemy.behavior = EnemyBehavior::Idle;
+							}
+						},
+						EnemyBehavior::TargetPlayer(curr, max, _) if curr >= max => {
+							enemy.behavior = EnemyBehavior::Idle;
+						},
+						EnemyBehavior::TargetPlayer(curr, max, path) if curr < max => {
+							//println!("Walking to target player {} of {}", curr, max);
+							if let Some(next_square) = path.first(){
+								if enemy.pos.to_grid_coord() == *next_square {
+									enemy.behavior = EnemyBehavior::WalkToButton(curr + 1, *max, path[1..].to_vec());
+								}else{
+									//move towards the next square
+									let target = next_square.center();
+									let enemy_pos = enemy.pos;
+									let angle = (target.y as f32 - enemy_pos.y as f32).atan2(target.x as f32 - enemy_pos.x as f32);
+									enemy.pos.x += (angle.cos() * Enemy::speed()) as i32;
+									enemy.pos.y += (angle.sin() * Enemy::speed()) as i32;
+									enemy.behavior = EnemyBehavior::WalkToButton(curr + 1, *max, path.to_vec());
+								}
+							}else{
+								println!("Path exhausted");
+								enemy.behavior = EnemyBehavior::Idle;
+							}
+						},
+						EnemyBehavior::AttackWalls(_curr, _max, _path) => {
+							todo!("Implement AttackWalls")
+						}
+						EnemyBehavior::WalkToButton(_, _, _) => {
+							todo!("Implement WalkToButton")
+						}
+						EnemyBehavior::TargetPlayer(_, _, _) => {
+							todo!("Implement TargetPlayer")
+						}
+					}
 				}
 				//TODO broadcast moves
 			},
 			BattleState::Finished => (),
 		};
-
 	}
 }
 
@@ -474,14 +561,10 @@ pub fn render_battle(canvas: &mut WindowCanvas, background_texture: &Texture, ct
 	canvas.fill_rect(Rect::new(0,0, canvas_size.0, canvas_size.1)).unwrap();
 	//canvas.copy(background_texture, None, None).expect("Couldn't draw background texture.");
 	draw_grid(canvas, background_texture, ctx);
-	ctx.button.render(canvas, background_texture, ctx);
-	for ability_plot in &ctx.ability_plots{
-		ability_plot.render(canvas, background_texture, ctx);
-	}
+
 	for wall in &ctx.walls{
 		wall.render(canvas, background_texture, ctx);
 	}
-	ctx.player.render(canvas, background_texture, ctx);
 	for visible_grid_square in ctx.get_visible_squares(){
 		canvas.set_draw_color(Color::RGB(32, 32, 32));
 		canvas.fill_rect(
@@ -495,6 +578,14 @@ pub fn render_battle(canvas: &mut WindowCanvas, background_texture: &Texture, ct
 				(GridCoord::grid_size() as f32 * 0.6) as u32
 			)
 		).unwrap();
+	}
+	ctx.button.render(canvas, background_texture, ctx);
+	for ability_plot in &ctx.ability_plots{
+		ability_plot.render(canvas, background_texture, ctx);
+	}
+	ctx.player.render(canvas, background_texture, ctx);
+	for enemy in &ctx.enemies{
+		enemy.render(canvas, background_texture, ctx);
 	}
 	Hud::from_player(&ctx.player).render(canvas, background_texture, ctx);
 	canvas.present();

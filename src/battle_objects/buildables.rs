@@ -1,5 +1,5 @@
 use sdl2::pixels::Color;
-use crate::battle_objects::coordinates::{GameCoord};
+use crate::battle_objects::coordinates::{GameCoord, GridCoord};
 use crate::screens::battle::BattleRenderable;
 
 #[derive(Clone, Copy)]
@@ -7,6 +7,31 @@ pub struct Wall{
 	//walls are corner-aligned. To convert them to game coordinates, default to the top left
 	pub endpoints: (GameCoord, GameCoord),
 	pub health: (usize, usize),
+}
+
+impl Wall {
+	pub fn is_blocking(&self, first: GridCoord, second: GridCoord) -> bool{
+		//if both of my coordinates are coordinates in both grid corners, return true, else false
+		let first_grid_coords = vec![first.top_left(), first.top_right(), first.bottom_left(), first.bottom_right()];
+		let second_grid_coords = vec![second.top_left(), second.top_right(), second.bottom_left(), second.bottom_right()];
+		let mut bordering_first_grid_count: u8 = 0;
+		first_grid_coords
+				.iter()
+				.for_each(|coord| {
+					if self.endpoints.0 == *coord || self.endpoints.1 == *coord{
+						bordering_first_grid_count+=1;
+					}
+				});
+		let mut bordering_second_grid_count: u8=0;
+		second_grid_coords
+				.iter()
+				.for_each(|coord| {
+					if self.endpoints.0 == *coord || self.endpoints.1 == *coord{
+						bordering_second_grid_count+=1;
+					}
+				});
+		return bordering_first_grid_count == 2  && bordering_second_grid_count == 2;
+	}
 }
 
 #[derive(Clone, Copy)]

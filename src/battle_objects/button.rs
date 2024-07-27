@@ -4,12 +4,14 @@ use sdl2::render::{Texture, WindowCanvas};
 use crate::battle_objects::coordinates::GridCoord;
 use crate::screens::battle::{BattleContext, BattleRenderable};
 
+#[derive(Clone)]
 pub enum ButtonState{
 	NeverPressed,
 	Pressed(usize, usize),
 	Unpressed(usize, usize),
 }
 
+#[derive(Clone)]
 pub struct Button{
 	pub pos: GridCoord,
 	pub state: ButtonState

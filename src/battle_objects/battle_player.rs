@@ -19,7 +19,7 @@ pub struct BattlePlayerContext{
 }
 
 impl BattlePlayerContext{
-	fn width() -> u32{
+	const fn width() -> u32{
 		16
 	}
 

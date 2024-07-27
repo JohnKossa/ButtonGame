@@ -104,6 +104,9 @@ impl GridCoord {
 	pub fn center(&self) -> GameCoord {
 		GameCoord {x: Self::grid_size()*self.x, y: Self::grid_size()*self.y}
 	}
+	pub fn pythagorean_distance_to(&self, other: &GridCoord) -> f32 {
+		(((self.x - other.x).pow(2) + (self.y - other.y).pow(2)) as f32).sqrt()
+	}
 }
 
 impl PartialEq for GridCoord {

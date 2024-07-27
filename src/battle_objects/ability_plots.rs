@@ -5,6 +5,7 @@ use crate::battle_objects::battle_player::Ability;
 use crate::battle_objects::coordinates::GridCoord;
 use crate::screens::battle::{BattleContext, BattleRenderable};
 
+#[derive(Clone)]
 pub struct AbilityPlot {
 	pub(crate) pos: GridCoord,
 	pub(crate) ability: Ability
