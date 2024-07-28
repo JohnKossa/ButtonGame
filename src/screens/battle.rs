@@ -84,7 +84,7 @@ impl BattleContext{
 	}
 	pub fn from_game_object(_game_object: &GameObject) -> BattleContext{
 		BattleContext::new()
-		// TODO hydrate from save state
+		//hydrate from save state if one exists
 	}
 
 	pub fn get_visible_squares(&self) -> HashSet<GridCoord>{
@@ -213,6 +213,49 @@ impl BattleContext{
 		if player_collisions.3{
 			//snap player to right of left wall
 			battle_player.game_coord.x = left_wall.unwrap().endpoints.0.x + GridCoord::grid_size()/2;
+		}
+
+		//check collisions for all enemies
+		for enemy in &mut battle_context.enemies{
+			let enemy_grid_corner_coords = [
+				enemy.pos.to_grid_coord().top_left(),
+				enemy.pos.to_grid_coord().top_right(),
+				enemy.pos.to_grid_coord().bottom_right(),
+				enemy.pos.to_grid_coord().bottom_left()
+			];
+			let top_wall: Option<&Wall> = battle_context.walls.iter().find(|wall| {
+				let wall_corners = (wall.endpoints.0, wall.endpoints.1);
+				return (enemy_grid_corner_coords[0] == wall_corners.0 && enemy_grid_corner_coords[1] == wall_corners.1) || (enemy_grid_corner_coords[0] == wall_corners.1 && enemy_grid_corner_coords[1] == wall_corners.0);
+			});
+			let right_wall: Option<&Wall> = battle_context.walls.iter().find(|wall| {
+				let wall_corners = (wall.endpoints.0, wall.endpoints.1);
+				return (enemy_grid_corner_coords[1] == wall_corners.0 && enemy_grid_corner_coords[2] == wall_corners.1) || (enemy_grid_corner_coords[1] == wall_corners.1 && enemy_grid_corner_coords[2] == wall_corners.0);
+			});
+			let bottom_wall: Option<&Wall> = battle_context.walls.iter().find(|wall| {
+				let wall_corners = (wall.endpoints.0, wall.endpoints.1);
+				return (enemy_grid_corner_coords[2] == wall_corners.0 && enemy_grid_corner_coords[3] == wall_corners.1) || (enemy_grid_corner_coords[2] == wall_corners.1 && enemy_grid_corner_coords[3] == wall_corners.0);
+			});
+			let left_wall: Option<&Wall> = battle_context.walls.iter().find(|wall| {
+				let wall_corners = (wall.endpoints.0, wall.endpoints.1);
+				return (enemy_grid_corner_coords[3] == wall_corners.0 && enemy_grid_corner_coords[0] == wall_corners.1) || (enemy_grid_corner_coords[3] == wall_corners.1 && enemy_grid_corner_coords[0] == wall_corners.0);
+			});
+			let enemy_collisions = enemy.get_collisions(top_wall, right_wall, bottom_wall, left_wall);
+			if enemy_collisions.0{
+				//snap enemy to bottom of top wall
+				enemy.pos.y = top_wall.unwrap().endpoints.0.y + GridCoord::grid_size()/2;
+			}
+			if enemy_collisions.1{
+				//snap enemy to left of right wall
+				enemy.pos.x = right_wall.unwrap().endpoints.0.x - GridCoord::grid_size()/2;
+			}
+			if enemy_collisions.2{
+				//snap enemy to top of bottom wall
+				enemy.pos.y = bottom_wall.unwrap().endpoints.0.y - GridCoord::grid_size()/2;
+			}
+			if enemy_collisions.3{
+				//snap enemy to right of left wall
+				enemy.pos.x = left_wall.unwrap().endpoints.0.x + GridCoord::grid_size()/2;
+			}
 		}
 
 		match battle_context.state {
@@ -454,8 +497,47 @@ impl BattleContext{
 								if let Some(path_to_button) = path_to(enemy_square, battle_context.button.pos, walls, &enemy_coords) {
 									enemy.behavior = EnemyBehavior::WalkToButton(0, 150, path_to_button);
 								}else{
-									enemy.behavior = EnemyBehavior::Idle;
-									// enemy.behavior = EnemyBehavior::AttackWalls(0, 150, Vec::new());
+									//find closest wall to enemy
+									let closest_wall = walls.iter().min_by(|wall1, wall2| {
+										let wall1_distance = wall1.endpoints.0.pythagorean_distance_to(&enemy.pos) + wall1.endpoints.1.pythagorean_distance_to(&enemy.pos);
+										let wall2_distance = wall2.endpoints.0.pythagorean_distance_to(&enemy.pos) + wall2.endpoints.1.pythagorean_distance_to(&enemy.pos);
+										wall1_distance.partial_cmp(&wall2_distance).unwrap()
+									});
+									if let Some(wall) = closest_wall{
+										//there should be 2 squares bordering the wall, find the one that's closest to the enemy
+										//get the midpoint between the 2 game coords
+										//get the slope between the 2 game coords
+										//add and subtract half the grid width along the reciprocal of the slope to the midpoint
+										//pick the one that's closest to the enemy
+										let midpoint = GameCoord{x: (wall.endpoints.0.x + wall.endpoints.1.x)/2, y: (wall.endpoints.0.y + wall.endpoints.1.y)/2};
+										let (dx, dy) = (wall.endpoints.1.x - wall.endpoints.0.x, wall.endpoints.1.y - wall.endpoints.0.y);
+										let width = GridCoord::grid_size();
+										let target_points = match (dx,dy){
+											(0,_) => (GameCoord{x: midpoint.x - width/2 , y: midpoint.y}, GameCoord{x: midpoint.x + width/2, y: midpoint.y}),
+											(_,0) => (GameCoord{x: midpoint.x, y: midpoint.y - width/2}, GameCoord{x: midpoint.x, y: midpoint.y + width/2}),
+											(_,_) => {unreachable!("Diagonal walls should not exist")}
+										};
+										let target_grid_square = vec![target_points.0, target_points.1]
+												.iter()
+												.min_by(|point1, point2| {
+													let distance1 = point1.pythagorean_distance_to(&enemy.pos);
+													let distance2 = point2.pythagorean_distance_to(&enemy.pos);
+													distance1.partial_cmp(&distance2).unwrap()
+												}).unwrap_or(&target_points.0).to_grid_coord();
+										//println!("Target grid square: {:?}", target_grid_square);
+
+										let path_to_wall = path_to(enemy_square,target_grid_square, walls, &enemy_coords);
+										if let Some(path) = path_to_wall {
+											println!("We're attacking a wall");
+											enemy.behavior = EnemyBehavior::AttackWalls(0, 150, path)
+										}else{
+											println!("No path to wall");
+												enemy.behavior = EnemyBehavior::Idle;
+										}
+									} else{
+										println!("No closest wall");
+										enemy.behavior = EnemyBehavior::Idle;
+									}
 								}
 							}
 						},
@@ -465,6 +547,9 @@ impl BattleContext{
 						},
 						EnemyBehavior::WalkToButton(curr, max, path)  if curr < max => {
 							//println!("Walking to button square {} of {}", curr, max);
+							if *curr == 0{
+								println!("Started targeting button");
+							}
 							if let Some(next_square) = path.first(){
 								if enemy.pos.to_grid_coord() == *next_square {
 									enemy.behavior = EnemyBehavior::WalkToButton(curr + 1, *max, path[1..].to_vec());
@@ -483,10 +568,14 @@ impl BattleContext{
 							}
 						},
 						EnemyBehavior::TargetPlayer(curr, max, _) if curr >= max => {
+							println!("Target player time limit reached");
 							enemy.behavior = EnemyBehavior::Idle;
 						},
 						EnemyBehavior::TargetPlayer(curr, max, path) if curr < max => {
 							//println!("Walking to target player {} of {}", curr, max);
+							if *curr == 0{
+								println!("Started targeting player");
+							}
 							if let Some(next_square) = path.first(){
 								if enemy.pos.to_grid_coord() == *next_square {
 									enemy.behavior = EnemyBehavior::WalkToButton(curr + 1, *max, path[1..].to_vec());
@@ -500,18 +589,47 @@ impl BattleContext{
 									enemy.behavior = EnemyBehavior::WalkToButton(curr + 1, *max, path.to_vec());
 								}
 							}else{
-								println!("Path exhausted");
+								//println!("Path exhausted");
 								enemy.behavior = EnemyBehavior::Idle;
 							}
 						},
-						EnemyBehavior::AttackWalls(_curr, _max, _path) => {
-							todo!("Implement AttackWalls")
+						EnemyBehavior::AttackWalls(curr, max, _) if curr >= max => {
+							println!("Attack walls time limit reached");
+							enemy.behavior = EnemyBehavior::Idle;
+						},
+						EnemyBehavior::AttackWalls(curr, max, path) if curr < max => {
+							//println!("Attacking walls {} of {}", curr, max);
+							if *curr == 0{
+								println!("Started targeting walls");
+							}
+							if let Some(next_square) = path.first(){
+								if enemy.pos.to_grid_coord() == *next_square {
+									enemy.behavior = EnemyBehavior::AttackWalls(curr + 1, *max, path[1..].to_vec());
+								}else{
+									//move towards the next square
+									let target = next_square.center();
+									let enemy_pos = enemy.pos;
+									let angle = (target.y as f32 - enemy_pos.y as f32).atan2(target.x as f32 - enemy_pos.x as f32);
+
+									enemy.pos.x += (angle.cos() * Enemy::speed()) as i32;
+									enemy.pos.y += (angle.sin() * Enemy::speed()) as i32;
+									enemy.behavior = EnemyBehavior::AttackWalls(curr + 1, *max, path.to_vec());
+								}
+							}else{
+								//path exhausted
+								//enemy.behavior = EnemyBehavior::Idle;
+								//println!("Target walls path reached. {} of {}", curr, max);
+								enemy.behavior = EnemyBehavior::WalkToButton(curr+1, *max, path.to_vec());
+							}
 						}
 						EnemyBehavior::WalkToButton(_, _, _) => {
 							todo!("Implement WalkToButton")
 						}
 						EnemyBehavior::TargetPlayer(_, _, _) => {
 							todo!("Implement TargetPlayer")
+						}
+						EnemyBehavior::AttackWalls(_, _, _) => {
+							todo!("Implement AttackWalls")
 						}
 					}
 				}

@@ -3,41 +3,6 @@ use std::collections::{BinaryHeap, HashMap};
 use crate::battle_objects::buildables::Wall;
 use crate::battle_objects::coordinates::GridCoord;
 
-/*pub fn bfs_pathing(from: GridCoord, to:GridCoord, walls: HashSet<Wall>, blocked_squares: HashSet<GridCoord>)-> Option<Vec<GridCoord>>{
-	//walls prevent two grid coords from being connected
-	//blocked squares completely block a grid coord from all sides
-	//use A* to find the shortest path if a path exist
-	//return None if no path exists
-	//return Some(Vec<GridCoord>) if a path exists
-	//return Some(Vec::new()) if from == to
-	let connected_squares = |square: GridCoord| -> Vec<GridCoord>{
-		let mut connected = vec![square.to_north(1),square.to_south(1),square.to_west(1),square.to_east(1)];
-		connected.filter(|&coord| !blocked_squares.contains(&coord) && !walls.iter().any(|wall| wall.is_blocking(square, coord))).collect()
-	};
-	let mut available_squares = Vec::new();
-	connected_squares(from).iter().for_each(|&coord|{available_squares.push(coord);});
-	let mut path = Vec::new();
-	while !available_squares.is_empty(){
-		let current = available_squares.remove(0);
-		if current == to{
-			path.append(current);
-			return Some(path);
-
-			let mut path = Vec::new();
-			let mut current_pos = current;
-			while current_pos != from{
-				path.push(current_pos);
-				current_pos = came_from[&current_pos];
-			}
-			path.push(from);
-			path.reverse();
-			return Some(path);
-		}
-
-	}
-	None
-}*/
-
 #[derive(Clone, Copy)]
 struct PathingNode{
 	position: GridCoord,
@@ -98,9 +63,8 @@ pub fn path_to(
 
 	while let Some(current) = open_set.pop() {
 		loop_iterations += 1;
-		if loop_iterations > 1000 {
-			println!("Pathing loop exceeded 1000 iterations");
-			println!("Open set size is {}", open_set.len());
+		if loop_iterations > 250 {
+			//println!("Pathing loop exceeded 250 iterations. Assuming no path and exiting.");
 			return None;
 		}
 		if current.position == to {
@@ -112,7 +76,6 @@ pub fn path_to(
 			}
 			//path.push(from);
 			path.reverse();
-			println!("Path found");
 			return Some(path);
 		}
 
@@ -127,6 +90,6 @@ pub fn path_to(
 			}
 		}
 	}
-	println!("Exhaused open set without finding a path");
+	println!("Exhausted open set without finding a path");
 	None
 }

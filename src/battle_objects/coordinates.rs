@@ -20,6 +20,10 @@ impl GameCoord {
 		GridCoord{x: x_grid, y: y_grid }
 	}
 
+	pub fn pythagorean_distance_to(&self, other: &GameCoord) -> f32 {
+		(((self.x - other.x).pow(2) + (self.y - other.y).pow(2)) as f32).sqrt()
+	}
+
 	pub fn to_display_coord(&self, center_point: GameCoord, scale_factor: f32, window_dimensions: (u32, u32)) -> sdl2::rect::Point{
 		//translate center to 0,0
 		//scale by the scale factor

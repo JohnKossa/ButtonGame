@@ -1,8 +1,10 @@
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::{Texture, WindowCanvas};
+use crate::battle_objects::buildables::Wall;
 use crate::battle_objects::coordinates::{Direction, GameCoord, GridCoord};
 use crate::screens::battle::{BattleContext, BattleRenderable};
+use crate::utils::collisions::line_to_square_intersect;
 
 #[derive(Clone)]
 pub struct Enemy{
@@ -16,11 +18,42 @@ impl Enemy {
 	pub fn speed() -> f32 {
 		1.5
 	}
-}
-
-impl Enemy{
 	const fn width() -> u32 {
 		16
+	}
+
+	pub fn attack_power() -> u32 {
+		12
+	}
+
+	pub fn get_collisions(&self, top_wall: Option<&Wall>, right_wall: Option<&Wall>,
+	                      bottom_wall: Option<&Wall>, left_wall: Option<&Wall>
+	) -> (bool, bool, bool, bool){
+		let mut collisions = (false, false, false, false);
+		let player_square = ||-> ((i32, i32),u32){
+			(self.pos.into(), Enemy::width())
+		};
+		if let Some(wall) = top_wall {
+			if line_to_square_intersect((wall.endpoints.0.into(), wall.endpoints.1.into()), player_square()){
+				collisions.0 = true;
+			}
+		}
+		if let Some(wall) = right_wall {
+			if line_to_square_intersect((wall.endpoints.0.into(), wall.endpoints.1.into()), player_square()){
+				collisions.1 = true;
+			}
+		}
+		if let Some(wall) = bottom_wall {
+			if line_to_square_intersect((wall.endpoints.0.into(), wall.endpoints.1.into()), player_square()){
+				collisions.2 = true;
+			}
+		}
+		if let Some(wall) = left_wall {
+			if line_to_square_intersect((wall.endpoints.0.into(), wall.endpoints.1.into()), player_square()){
+				collisions.3 = true;
+			}
+		}
+		collisions
 	}
 }
 
